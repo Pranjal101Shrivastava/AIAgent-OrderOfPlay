@@ -18,6 +18,7 @@ Two are declared:
 | --- | --- | --- |
 | `db` | Per-artifact JSON document store, durable across reloads, republishes and devices | Tasks, profile, settings, log |
 | `sample` | An authenticated call to Claude on the viewer's own account | The planning/reasoning turn |
+| `downloads` | A viewer-confirmed file save | Exporting a backup |
 
 Each is obtained asynchronously:
 
@@ -422,11 +423,20 @@ message is wrapped, strict about what it says.**
 
 | Condition | Behaviour |
 | --- | --- |
-| Both capabilities present | Full agent |
+| All capabilities present | Full agent |
 | `db` present, `sample` null | List, editing, rollover and undo work; composer explains |
 | `db` null, `sample` present | In-memory session, lost on reload |
-| Both null | Static example day, fully rendered |
+| `downloads` null, inside a viewer | Export is disabled rather than left to fail silently |
+| No host at all (opened as a file) | Export falls back to a blob link, which works there |
+| All null | Static example day, fully rendered |
 | `localStorage` throws | Tier resets to default; everything else unaffected |
+
+**A page cannot download anything by itself.** An `<a download>` pointing at a blob URL is
+ignored by the artifact viewer, without an error — so an export button built that way appears
+to work and does nothing, which is the worst available outcome for a backup feature. Saving
+goes through `downloads.save()`, which asks the viewer and can refuse for several ordinary
+reasons (`declined`, `rate_limited`, `too_large`); each gets its own copy. The blob path is
+kept only for the hostless case, where it is the one that works.
 
 Every storage access is wrapped in `try/catch`, because it can throw in private windows and
 return empty under cleared site data.
@@ -493,7 +503,7 @@ is to test everything except the model, which turns out to be almost all of it.
 **Not tested:** whether Claude gives good advice. That is an evaluation problem and belongs in
 a different kind of harness.
 
-**Tested — 161 assertions:**
+**Tested — 163 assertions:**
 
 - Every coercion, with hostile input: `2026-02-30`, negative push counts, objects where
   strings belong, `__proto__` as a shape.
@@ -510,7 +520,7 @@ a different kind of harness.
 exports, so a typo'd core call fails CI. It was verified by introducing a deliberate typo and
 confirming it was caught — a test never seen to fail is a test not known to work.
 
-**35 browser checks** drive the built artifact in Chromium: degraded mode with no capabilities,
+**46 browser checks** drive the built artifact in Chromium: degraded mode with no capabilities,
 the full agent path against a scripted reply that is fenced, prose-wrapped and carries a bogus
 action, editing, rollover, undo, settings, and mobile layout. These verify the file users
 actually load, not merely the functions inside it.

@@ -752,6 +752,7 @@ which the host grants two runtime capabilities.
 | --- | --- |
 | `db` | A small document store, private to this artifact, durable across reloads and devices |
 | `sample` | An authenticated call to Claude, billed to whoever is viewing |
+| `downloads` | A file save the viewer confirms — the page cannot hand over a file by itself |
 
 Each is requested asynchronously and may not arrive:
 
@@ -779,6 +780,7 @@ The benefit is that the page degrades in stages rather than failing.
 | --- | --- |
 | Both capabilities | Full agent |
 | `db` only | List works, editing works, composer explains why it cannot plan |
+| No `downloads` | Export is disabled, rather than appearing to work and doing nothing |
 | `sample` only | Works for the session; lost on reload |
 | Neither | Static example day, fully rendered |
 | `localStorage` throws | Tier resets to default; nothing else affected |
@@ -1130,7 +1132,7 @@ By testing everything except the model. Which turns out to be almost all of it.
 **What is not tested:** whether Claude gives good advice. That is not a unit
 test, it is an evaluation problem, and it belongs in a different kind of harness.
 
-**What is tested — 161 assertions:**
+**What is tested — 163 assertions:**
 
 - *Every coercion*, with hostile input. `2026-02-30`. Negative push counts.
   Objects where strings belong. `__proto__` as a shape.
@@ -1165,7 +1167,7 @@ and a plan is an ordinary data structure you can assert on. **Push the
 non-determinism to the edges and the middle becomes testable** — which is a good
 rule for far more than agents.
 
-Beyond the unit tests, 35 browser checks drive the built artifact in a real
+Beyond the unit tests, 46 browser checks drive the built artifact in a real
 browser: degraded mode with no capabilities at all, the full agent path with a
 scripted model reply (deliberately fenced, with prose around it, and carrying
 one bogus action), inline editing, rollover, undo, settings, and mobile layout.
@@ -1301,7 +1303,7 @@ trade, recorded here.
 │   └── shell.html               interface and wiring
 ├── dist/
 │   └── order-of-play.html       ← publish this one file
-└── test/                        161 assertions, node:test, zero deps
+└── test/                        163 assertions, node:test, zero deps
 ```
 
 **Where to start reading**, depending on what you want:
@@ -1317,7 +1319,7 @@ Running it locally:
 
 ```bash
 node build.mjs      # rebuild dist/ from src/
-npm test            # 161 assertions
+npm test            # 163 assertions
 npm run verify      # check dist/ is current, then test
 ```
 
@@ -1325,7 +1327,7 @@ To run the agent itself you publish `dist/order-of-play.html` as a Claude
 Artifact with these capabilities declared:
 
 ```json
-{ "db": {}, "sample": {} }
+{ "db": {}, "sample": {}, "downloads": true }
 ```
 
 Opening the file directly in a browser renders the full interface with the

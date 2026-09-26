@@ -48,6 +48,33 @@ export function buildBackup(state, options) {
   };
 }
 
+/**
+ * Why a save did not happen, in the viewer's words.
+ *
+ * A published artifact cannot hand the viewer a file by itself: a blob URL
+ * behind an `<a download>` is simply ignored, silently, which is the worst
+ * possible outcome for an export button. Saving goes through the host's
+ * `downloads` capability, which asks the viewer and can refuse for several
+ * ordinary reasons — so each one gets copy rather than a shrug.
+ */
+export const DOWNLOAD_ERROR_COPY = {
+  declined: "Export cancelled.",
+  rate_limited: "Too many save prompts at once — try again in a moment.",
+  too_large: "That export is too large for this destination.",
+  rejected_extension: "This viewer won't save a .json file.",
+  extension_not_enabled: "JSON downloads aren't available in this viewer.",
+  bad_request: "Something was wrong with the export I built.",
+  unavailable: "Saving files isn't available in this view.",
+  not_granted: "Saving files isn't available in this view."
+};
+
+export function downloadErrorCopy(code) {
+  if (code && Object.prototype.hasOwnProperty.call(DOWNLOAD_ERROR_COPY, code)) {
+    return DOWNLOAD_ERROR_COPY[code];
+  }
+  return "That export didn't save. Try again.";
+}
+
 export function backupFilename(now) {
   const stamp = (typeof now === "string" ? now : new Date().toISOString()).slice(0, 10);
   return `order-of-play-${stamp}.json`;

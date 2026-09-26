@@ -1168,6 +1168,33 @@ function buildBackup(state, options) {
   };
 }
 
+/**
+ * Why a save did not happen, in the viewer's words.
+ *
+ * A published artifact cannot hand the viewer a file by itself: a blob URL
+ * behind an `<a download>` is simply ignored, silently, which is the worst
+ * possible outcome for an export button. Saving goes through the host's
+ * `downloads` capability, which asks the viewer and can refuse for several
+ * ordinary reasons — so each one gets copy rather than a shrug.
+ */
+const DOWNLOAD_ERROR_COPY = {
+  declined: "Export cancelled.",
+  rate_limited: "Too many save prompts at once — try again in a moment.",
+  too_large: "That export is too large for this destination.",
+  rejected_extension: "This viewer won't save a .json file.",
+  extension_not_enabled: "JSON downloads aren't available in this viewer.",
+  bad_request: "Something was wrong with the export I built.",
+  unavailable: "Saving files isn't available in this view.",
+  not_granted: "Saving files isn't available in this view."
+};
+
+function downloadErrorCopy(code) {
+  if (code && Object.prototype.hasOwnProperty.call(DOWNLOAD_ERROR_COPY, code)) {
+    return DOWNLOAD_ERROR_COPY[code];
+  }
+  return "That export didn't save. Try again.";
+}
+
 function backupFilename(now) {
   const stamp = (typeof now === "string" ? now : new Date().toISOString()).slice(0, 10);
   return `order-of-play-${stamp}.json`;
@@ -1945,9 +1972,14 @@ function zoneChoices(current) {
   var HISTORY = createHistory();
   var MAKE_ID = defaultIdFactory();
 
-  var db = null, ask = null;
+  var db = null, ask = null, saveFile = null;
   var isExample = true, busy = false, ctl = null, editingId = null;
   var rolloverOffered = "";
+
+  // Inside a Claude viewer the page is framed and window.claude exists before
+  // any page script runs. Outside one it never appears. That distinction
+  // decides how a file can reach the viewer at all — see exportQueue().
+  var inViewer = !!(window.claude && typeof window.claude.use === "function");
 
   // The example day. Rendered synchronously so the first paint is a working
   // interface rather than a spinner, and replaced the moment real data arrives.
@@ -2404,28 +2436,70 @@ function zoneChoices(current) {
 
   /* ------------------------------------------------------- export / import */
 
-  el.exportB.addEventListener("click", function(){
+  /**
+   * Hand the viewer a file.
+   *
+   * A published artifact cannot download anything on its own: an <a download>
+   * pointing at a blob URL is ignored by the viewer, without an error, so the
+   * button would appear to work and do nothing. Inside a viewer the save must
+   * go through the host's downloads capability, which asks the viewer first.
+   * Opened as a plain file, there is no host and the blob link is the only
+   * route — and it works there.
+   */
+  function offerFile(filename, text){
+    if (saveFile) {
+      return saveFile.save({ filename: filename, data: text })
+        .then(function(res){ return res && res.status === "delivered" ? "delivered" : "saved"; });
+    }
+    if (inViewer) {
+      return Promise.reject({ code: "unavailable", message: "no downloads capability" });
+    }
+    return new Promise(function(resolve, reject){
+      try {
+        var blob = new Blob([text], { type: "application/json" });
+        var url = URL.createObjectURL(blob);
+        var link = document.createElement("a");
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+        resolve("saved");
+      } catch (err) {
+        reject({ code: "unavailable", message: String(err) });
+      }
+    });
+  }
+
+  function exportQueue(){
     var now = new Date().toISOString();
     var payload = buildBackup(
       { tasks: TASKS, profile: PROFILE, log: LOG },
       { now: now, timeZone: SETTINGS.timeZone }
     );
     var text = JSON.stringify(payload, null, 2);
-    try {
-      var blob = new Blob([text], { type: "application/json" });
-      var url = URL.createObjectURL(blob);
-      var link = document.createElement("a");
-      link.href = url;
-      link.download = backupFilename(now);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
-      say("Exported " + payload.counts.tasks + " tasks.", "live", payload.counts.open + " still open");
-    } catch (err) {
-      say("This browser wouldn't let me save the file.", "err");
-    }
-  });
+
+    el.exportB.disabled = true;
+    say("Preparing the export\u2026");
+    offerFile(backupFilename(now), text)
+      .then(function(status){
+        say(
+          status === "delivered"
+            ? "Export sent on."
+            : "Exported " + payload.counts.tasks + " task" + (payload.counts.tasks === 1 ? "" : "s") + ".",
+          "live",
+          payload.counts.open + " still open"
+        );
+      })
+      .catch(function(err){
+        var code = (err && err.code) || "unavailable";
+        say(downloadErrorCopy(code), code === "declined" ? "" : "err");
+      })
+      .then(function(){ el.exportB.disabled = false; });
+  }
+
+  el.exportB.addEventListener("click", exportQueue);
 
   el.importB.addEventListener("click", function(){ el.file.click(); });
 
@@ -2631,8 +2705,22 @@ function zoneChoices(current) {
   paintSettings();
   render();
 
-  if (window.claude && typeof window.claude.use === "function") {
+  if (inViewer) {
     window.claude.use("sample").then(function(sample){ ask = sample; }).catch(noop);
+
+    // Resolves null where the viewer cannot save files. The affordance is
+    // hidden rather than left to fail, since a dead Export button is worse
+    // than no Export button.
+    window.claude.use("downloads").then(function(downloads){
+      saveFile = downloads || null;
+      if (!saveFile) {
+        el.exportB.disabled = true;
+        el.exportB.title = "This viewer can't save files";
+      }
+    }).catch(function(){
+      el.exportB.disabled = true;
+      el.exportB.title = "This viewer can't save files";
+    });
 
     window.claude.use("db").then(function(store){
       if (!store) return;

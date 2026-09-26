@@ -32,6 +32,12 @@ keeps the single-file deployment target, and the correctness fixes that testing 
   whenever status is `open`, so the contradiction is unrepresentable.
 - **`errorCopy` could return inherited object properties.** A code of `toString` returned a
   JavaScript function. Lookups are now guarded with `hasOwnProperty`.
+- **Export saved nothing inside the artifact viewer.** It offered the file with an
+  `<a download>` pointing at a blob URL, which the viewer ignores silently — so the button
+  looked like it worked and did not. Saving now goes through the host's `downloads`
+  capability, which asks the viewer first; the blob path is kept only for the hostless case
+  of opening the file directly, where it does work, and Export is disabled outright when
+  neither route is available.
 
 ### Added
 
@@ -69,16 +75,17 @@ keeps the single-file deployment target, and the correctness fixes that testing 
 
 ### Testing and infrastructure
 
-- **161 assertions** via `node:test`, covering every coercion with hostile input, every action
+- **163 assertions** via `node:test`, covering every coercion with hostile input, every action
   valid and invalid, the push rule in all four directions, rollover fairness, undo and redo,
   the tolerant parser, backup round-trips, and the prompt itself — including a test that the
   worked example shown to the model parses with this project's own parser.
 - **A build-linkage test** that cross-references every identifier the shell calls against the
   core's real exports, so a typo'd core call fails CI. Verified by introducing a deliberate
   typo and confirming it was caught.
-- **35 browser checks** driving the built artifact in Chromium: degraded mode with no
+- **46 browser checks** driving the built artifact in Chromium: degraded mode with no
   capabilities, the full agent path with a scripted reply (fenced, prose-wrapped, carrying a
-  bogus action), editing, rollover, undo, settings, and mobile layout.
+  bogus action), editing, rollover, undo, settings, mobile layout, and all four export routes (granted,
+  declined, unavailable, and hostless).
 - **CI on Node 20 and 22**, which also asserts `dist/` is in sync with `src/` and that no npm
   dependencies have crept in.
 

@@ -11,6 +11,7 @@ import {
   IMPORT_REPLACE,
   backupFilename,
   buildBackup,
+  downloadErrorCopy,
   planImport,
   readBackup
 } from "../src/core/backup.js";
@@ -190,4 +191,18 @@ test("merge does not duplicate a profile line already present", () => {
 
 test("backupFilename is dated and stable", () => {
   assert.equal(backupFilename(NOW), "order-of-play-2026-09-26.json");
+});
+
+test("downloadErrorCopy names each ordinary refusal", () => {
+  assert.equal(downloadErrorCopy("declined"), "Export cancelled.");
+  assert.match(downloadErrorCopy("rate_limited"), /try again/i);
+  assert.match(downloadErrorCopy("too_large"), /too large/i);
+  assert.match(downloadErrorCopy("unavailable"), /isn't available/);
+});
+
+test("downloadErrorCopy does not leak inherited properties", () => {
+  assert.match(downloadErrorCopy("toString"), /didn't save/);
+  assert.match(downloadErrorCopy("__proto__"), /didn't save/);
+  assert.match(downloadErrorCopy(undefined), /didn't save/);
+  assert.match(downloadErrorCopy("some_future_code"), /didn't save/);
 });

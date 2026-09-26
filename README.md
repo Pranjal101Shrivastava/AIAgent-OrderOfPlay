@@ -84,6 +84,13 @@ Export the whole queue — tasks, goals, habits, history — as versioned JSON, 
 back. Import validates every row through the same normaliser the running app uses, and offers
 replace or merge.
 
+Saving goes through the host's `downloads` capability, which asks the viewer first. A
+published page cannot hand over a file by itself: an `<a download>` pointing at a blob URL is
+ignored by the viewer, silently, so an export button built that way looks like it works and
+does nothing. Opened as a plain file there is no host, and the blob link is then the only
+route — the page takes whichever one is actually available, and disables Export when neither
+is.
+
 ### Time that survives travel
 
 Days are anchored to a home timezone you set, not to whatever device you are holding. Boarding
@@ -265,7 +272,7 @@ CI asserts that this stays true.
 ```bash
 node build.mjs      # rebuild dist/order-of-play.html from src/
 node build.mjs --check   # verify dist/ is in sync with src/
-npm test            # 161 assertions
+npm test            # 163 assertions
 npm run verify      # check, then test
 ```
 
@@ -289,7 +296,7 @@ This is a Claude Artifact, not a standalone web app. Publish `dist/order-of-play
 Artifact with these capabilities declared:
 
 ```json
-{ "db": {}, "sample": {} }
+{ "db": {}, "sample": {}, "downloads": true }
 ```
 
 Opening the file directly in a browser renders the full interface with the agent features
@@ -358,7 +365,7 @@ Stated plainly, because they're design consequences rather than bugs:
 │   └── shell.html               interface and wiring
 ├── dist/
 │   └── order-of-play.html       ← the file you publish
-└── test/                        161 assertions, node:test, zero deps
+└── test/                        163 assertions, node:test, zero deps
 ```
 
 ---
