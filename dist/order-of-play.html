@@ -1,0 +1,2678 @@
+<title>Order of Play</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=JetBrains+Mono:wght@400;500&family=Public+Sans:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --ground:#EFF2ED; --surface:#FAFBF8; --surface-2:#E6EAE2;
+    --ink:#191E1A; --ink-2:#5C665E; --ink-3:#8A948C;
+    --line:#D7DDD3; --line-2:#C5CDC0;
+    --accent:#2F6B58; --accent-soft:#DBE8E1;
+    --warn:#8A5A05; --warn-soft:#F0E6CB;
+    --alarm:#8C2F2F; --alarm-soft:#F2DCDC;
+    --deep:#2F6B58; --admin:#4D6180; --errand:#856231; --social:#7D4366;
+    --shadow:0 1px 2px rgba(25,30,26,.06);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#121614; --surface:#1B201D; --surface-2:#252B27;
+      --ink:#E5EAE6; --ink-2:#98A29A; --ink-3:#6C766E;
+      --line:#2C332E; --line-2:#3A423C;
+      --accent:#69BFA0; --accent-soft:#1D372F;
+      --warn:#D3A24A; --warn-soft:#382E16;
+      --alarm:#E08585; --alarm-soft:#3A1E1E;
+      --deep:#69BFA0; --admin:#8CA3C7; --errand:#C39A5F; --social:#C287A9;
+      --shadow:0 1px 2px rgba(0,0,0,.3);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#121614; --surface:#1B201D; --surface-2:#252B27;
+    --ink:#E5EAE6; --ink-2:#98A29A; --ink-3:#6C766E;
+    --line:#2C332E; --line-2:#3A423C;
+    --accent:#69BFA0; --accent-soft:#1D372F;
+    --warn:#D3A24A; --warn-soft:#382E16;
+    --alarm:#E08585; --alarm-soft:#3A1E1E;
+    --deep:#69BFA0; --admin:#8CA3C7; --errand:#C39A5F; --social:#C287A9;
+    --shadow:0 1px 2px rgba(0,0,0,.3);
+  }
+
+  *{box-sizing:border-box}
+  body{
+    background:var(--ground); color:var(--ink);
+    font-family:"Public Sans",ui-sans-serif,system-ui,-apple-system,sans-serif;
+    font-size:15px; line-height:1.5; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:660px; margin:0 auto; padding-inline:16px; padding-block:28px 0}
+
+  .eyebrow{
+    font-family:"JetBrains Mono",ui-monospace,monospace;
+    font-size:10.5px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--ink-3); margin:0;
+  }
+  h1{
+    font-family:"Fraunces","Iowan Old Style",Georgia,serif;
+    font-weight:600; font-size:clamp(28px,7vw,36px); line-height:1.1;
+    margin:6px 0 0; text-wrap:balance; letter-spacing:-.01em;
+  }
+  .standfirst{color:var(--ink-2); margin:8px 0 0; max-width:46ch}
+  .standfirst em{color:var(--accent); font-style:normal; font-weight:600}
+
+  header.top{border-bottom:1px solid var(--line); padding-bottom:18px}
+
+  /* toolbar */
+  .tools{display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-top:15px}
+  .tools .spacer{flex:1 1 auto}
+  button.tool{
+    font-family:"JetBrains Mono",ui-monospace,monospace;
+    font-size:10.5px; letter-spacing:.07em; text-transform:uppercase;
+    padding:6px 9px; border-radius:6px; cursor:pointer;
+    border:1px solid var(--line-2); background:var(--surface); color:var(--ink-2);
+    transition:background .12s,color .12s,border-color .12s;
+  }
+  button.tool:hover:not(:disabled){background:var(--surface-2); color:var(--ink)}
+  button.tool:disabled{opacity:.38; cursor:default}
+  button.tool.on{background:var(--accent-soft); color:var(--accent); border-color:transparent}
+
+  .banner{
+    margin-top:16px; padding:10px 13px; border-radius:8px;
+    background:var(--warn-soft); color:var(--warn);
+    font-size:13px; border:1px solid color-mix(in srgb,var(--warn) 22%,transparent);
+  }
+  .banner.note{background:var(--accent-soft); color:var(--accent); border-color:transparent}
+
+  section.day{margin-top:24px}
+  section.day.overdue .dayhead{border-bottom-color:color-mix(in srgb,var(--alarm) 35%,transparent)}
+  .dayhead{
+    display:flex; align-items:baseline; justify-content:space-between;
+    gap:10px; padding-bottom:9px; border-bottom:1px solid var(--line); flex-wrap:wrap;
+  }
+  .dayname{
+    font-family:"Fraunces","Iowan Old Style",Georgia,serif;
+    font-size:19px; font-weight:600; margin:0; letter-spacing:-.005em;
+  }
+  section.day.overdue .dayname{color:var(--alarm)}
+  .daydate{
+    font-family:"JetBrains Mono",ui-monospace,monospace; font-size:11px;
+    color:var(--ink-3); letter-spacing:.05em; font-variant-numeric:tabular-nums;
+  }
+  .headact{margin-left:auto}
+  button.inline{
+    font-family:"JetBrains Mono",ui-monospace,monospace;
+    font-size:10px; letter-spacing:.07em; text-transform:uppercase;
+    padding:4px 8px; border-radius:5px; cursor:pointer;
+    border:1px solid color-mix(in srgb,var(--alarm) 40%,transparent);
+    background:var(--alarm-soft); color:var(--alarm);
+  }
+  button.inline:hover{background:color-mix(in srgb,var(--alarm) 18%,transparent)}
+
+  ul.queue{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:1px}
+
+  li.task{
+    display:grid; grid-template-columns:26px 1fr auto; gap:11px; align-items:start;
+    background:var(--surface); border:1px solid var(--line);
+    border-inline-start:3px solid var(--tone,var(--ink-3));
+    border-radius:7px; padding:11px 11px 11px 10px; box-shadow:var(--shadow);
+  }
+  li.task.deep{--tone:var(--deep)} li.task.admin{--tone:var(--admin)}
+  li.task.errand{--tone:var(--errand)} li.task.social{--tone:var(--social)}
+  li.task.done{opacity:.5; --tone:var(--line-2)}
+  li.task.done .ttl{text-decoration:line-through; text-decoration-thickness:1px}
+  li.task.editing{grid-template-columns:1fr; box-shadow:0 0 0 2px var(--accent-soft),var(--shadow)}
+
+  .idx{
+    font-family:"JetBrains Mono",ui-monospace,monospace; font-size:12px;
+    color:var(--ink-3); font-variant-numeric:tabular-nums;
+    text-align:right; padding-top:2px;
+  }
+  .ttl{margin:0; font-weight:500; overflow-wrap:anywhere}
+  .meta{display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-top:5px}
+  .chip{
+    font-family:"JetBrains Mono",ui-monospace,monospace;
+    font-size:10px; letter-spacing:.06em; text-transform:uppercase;
+    color:var(--tone); padding:2px 5px; border-radius:4px;
+    background:color-mix(in srgb,var(--tone) 12%,transparent);
+  }
+  .size{
+    font-family:"JetBrains Mono",ui-monospace,monospace;
+    font-size:10px; color:var(--ink-3); letter-spacing:.06em;
+  }
+  .push{
+    font-family:"JetBrains Mono",ui-monospace,monospace; font-size:10px;
+    letter-spacing:.04em; color:var(--warn); background:var(--warn-soft);
+    padding:2px 5px; border-radius:4px; font-variant-numeric:tabular-nums;
+  }
+  .push.loud{color:var(--alarm); background:var(--alarm-soft); font-weight:500}
+  .late{
+    font-family:"JetBrains Mono",ui-monospace,monospace; font-size:10px;
+    letter-spacing:.04em; color:var(--alarm); background:var(--alarm-soft);
+    padding:2px 5px; border-radius:4px;
+  }
+
+  .acts{display:flex; gap:2px; align-items:center}
+  button.ib{
+    width:27px; height:27px; padding:0; border-radius:5px; cursor:pointer;
+    border:1px solid transparent; background:transparent; color:var(--ink-3);
+    font-size:13px; line-height:1; display:grid; place-items:center;
+    font-family:inherit; transition:background .12s,color .12s;
+  }
+  button.ib:hover{background:var(--surface-2); color:var(--ink)}
+  button.ib.tick:hover{background:var(--accent-soft); color:var(--accent)}
+  button.ib:focus-visible,button:focus-visible,textarea:focus-visible,
+  input:focus-visible,select:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
+
+  /* inline editor */
+  .editor{display:grid; gap:9px}
+  .editor input[type="text"]{
+    font-family:inherit; font-size:15px; font-weight:500; color:var(--ink);
+    background:var(--ground); border:1px solid var(--line-2);
+    border-radius:6px; padding:8px 9px; width:100%;
+  }
+  .editrow{display:flex; flex-wrap:wrap; gap:7px; align-items:center}
+  .editor select,.editor input[type="date"]{
+    font-family:"JetBrains Mono",ui-monospace,monospace; font-size:11px;
+    color:var(--ink); background:var(--ground);
+    border:1px solid var(--line-2); border-radius:6px; padding:5px 7px;
+  }
+  .editor .grow{flex:1 1 auto}
+  button.mini{
+    font-family:"JetBrains Mono",ui-monospace,monospace;
+    font-size:10px; letter-spacing:.07em; text-transform:uppercase;
+    padding:5px 9px; border-radius:5px; cursor:pointer;
+    border:1px solid var(--line-2); background:var(--surface); color:var(--ink-2);
+  }
+  button.mini.go{background:var(--accent); color:var(--ground); border-color:transparent; font-weight:500}
+  button.mini.bad{color:var(--alarm); border-color:color-mix(in srgb,var(--alarm) 35%,transparent)}
+  button.mini:hover{filter:brightness(1.06)}
+
+  p.empty{color:var(--ink-3); font-size:13.5px; margin:14px 0 0; font-style:italic}
+
+  /* secretary */
+  .desk{
+    position:sticky; bottom:0; margin-top:28px;
+    background:var(--ground); border-top:1px solid var(--line);
+    padding-block:13px; padding-bottom:calc(13px + env(safe-area-inset-bottom,0px));
+  }
+  .say{margin:0 0 9px; min-height:20px; font-size:14px; color:var(--ink-2)}
+  .say.live{color:var(--ink)}
+  .say.err{color:var(--warn)}
+  .say b{
+    font-family:"JetBrains Mono",ui-monospace,monospace; font-weight:500;
+    font-size:10px; letter-spacing:.12em; text-transform:uppercase;
+    color:var(--ink-3); display:block; margin-bottom:3px;
+  }
+  .aside{
+    display:block; margin-top:4px; font-size:12px; color:var(--ink-3);
+    font-family:"JetBrains Mono",ui-monospace,monospace; letter-spacing:.02em;
+  }
+  .deskbar{
+    display:flex; align-items:center; justify-content:space-between;
+    gap:10px; margin-bottom:9px; flex-wrap:wrap;
+  }
+  .tiers{display:inline-flex; border:1px solid var(--line-2); border-radius:7px; overflow:hidden}
+  button.tier{
+    font-family:"JetBrains Mono",ui-monospace,monospace;
+    font-size:10px; letter-spacing:.09em; text-transform:uppercase;
+    padding:5px 10px; border:none; background:transparent; color:var(--ink-3);
+    cursor:pointer; transition:background .12s,color .12s;
+  }
+  button.tier + button.tier{border-left:1px solid var(--line-2)}
+  button.tier[aria-pressed="true"]{background:var(--accent-soft); color:var(--accent); font-weight:500}
+  .applied{
+    font-family:"JetBrains Mono",ui-monospace,monospace;
+    font-size:10px; letter-spacing:.06em; color:var(--ink-3);
+  }
+  .composer{display:flex; gap:8px; align-items:flex-end}
+  textarea{
+    flex:1; resize:none; font-family:inherit; font-size:15px; color:var(--ink);
+    background:var(--surface); border:1px solid var(--line-2); border-radius:8px;
+    padding:10px 11px; min-height:42px; max-height:132px; line-height:1.45;
+  }
+  textarea::placeholder{color:var(--ink-3)}
+  button.send{
+    font-family:inherit; font-size:14px; font-weight:600; cursor:pointer;
+    background:var(--accent); color:var(--ground); border:none;
+    border-radius:8px; padding:11px 16px; white-space:nowrap;
+  }
+  button.send:disabled{opacity:.45; cursor:default}
+  button.ghost{
+    font-family:inherit; font-size:13px; cursor:pointer; color:var(--ink-2);
+    background:transparent; border:1px solid var(--line-2);
+    border-radius:8px; padding:11px 13px;
+  }
+
+  /* panels */
+  details.panel{margin-top:22px; border-top:1px solid var(--line); padding-top:15px}
+  details.panel summary{
+    cursor:pointer; font-family:"JetBrains Mono",ui-monospace,monospace;
+    font-size:10.5px; letter-spacing:.13em; text-transform:uppercase; color:var(--ink-3);
+  }
+  details.panel summary::marker{color:var(--line-2)}
+  .panelbox{margin-top:14px; display:grid; gap:16px}
+  .panelbox h3{
+    font-family:"JetBrains Mono",ui-monospace,monospace; font-size:10px;
+    letter-spacing:.12em; text-transform:uppercase; color:var(--ink-3);
+    margin:0 0 7px; font-weight:500;
+  }
+  .panelbox ul{margin:0; padding-left:17px; display:flex; flex-direction:column; gap:5px}
+  .panelbox li{font-size:14px; color:var(--ink-2)}
+  .panelbox li::marker{color:var(--accent)}
+  .none{color:var(--ink-3); font-size:13.5px; font-style:italic}
+  .setrow{display:flex; gap:9px; align-items:center; flex-wrap:wrap}
+  .setrow label{
+    font-family:"JetBrains Mono",ui-monospace,monospace; font-size:10px;
+    letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3); min-width:92px;
+  }
+  .setrow select{
+    font-family:"JetBrains Mono",ui-monospace,monospace; font-size:11px;
+    color:var(--ink); background:var(--surface);
+    border:1px solid var(--line-2); border-radius:6px; padding:5px 7px;
+  }
+  .hint{font-size:12.5px; color:var(--ink-3); margin:5px 0 0; max-width:52ch}
+
+  footer.fine{
+    margin-top:24px; padding-block:15px 30px; border-top:1px solid var(--line);
+    font-size:12px; color:var(--ink-3); line-height:1.6;
+  }
+  .sr{
+    position:absolute; width:1px; height:1px; overflow:hidden;
+    clip:rect(0 0 0 0); white-space:nowrap;
+  }
+
+  @media (prefers-reduced-motion: reduce){*{transition:none!important; animation:none!important}}
+  @media (max-width:430px){
+    li.task{grid-template-columns:20px 1fr; gap:9px}
+    li.task.editing{grid-template-columns:1fr}
+    .acts{grid-column:2; justify-content:flex-end; margin-top:2px}
+  }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <p class="eyebrow">Personal secretary</p>
+    <h1>Order of Play</h1>
+    <p class="standfirst">Your day as an <em>ordered queue</em>, never a timetable. Days are fixed. Hours are yours.</p>
+    <div class="tools">
+      <button class="tool" id="undo" type="button" disabled>Undo</button>
+      <button class="tool" id="redo" type="button" disabled>Redo</button>
+      <span class="spacer"></span>
+      <button class="tool" id="export" type="button">Export</button>
+      <button class="tool" id="import" type="button">Import</button>
+      <input type="file" id="file" accept="application/json,.json" class="sr">
+    </div>
+  </header>
+
+  <div id="banner" class="banner" hidden></div>
+  <div id="notice" class="banner note" hidden></div>
+  <main id="board"></main>
+
+  <details class="panel">
+    <summary>What your secretary knows</summary>
+    <div class="panelbox">
+      <div><h3>Goals</h3><div id="goals"></div></div>
+      <div><h3>Habits it has noticed</h3><div id="habits"></div></div>
+    </div>
+  </details>
+
+  <details class="panel">
+    <summary>Settings</summary>
+    <div class="panelbox">
+      <div>
+        <div class="setrow">
+          <label for="zone">Home zone</label>
+          <select id="zone"></select>
+        </div>
+        <p class="hint">Which day it is, is decided here rather than by the device you happen
+          to be holding. Set this and a flight stops rewriting your queue.</p>
+      </div>
+      <div>
+        <div class="setrow">
+          <label for="roll">Overdue work</label>
+          <select id="roll">
+            <option value="ask">Ask me to roll it over</option>
+            <option value="auto">Roll it to today automatically</option>
+            <option value="off">Leave it where it is</option>
+          </select>
+        </div>
+        <p class="hint">Rolling a task off a day that has already passed counts one push —
+          at most one per day, however long you were away.</p>
+      </div>
+    </div>
+  </details>
+
+  <footer class="fine">
+    Tasks carry a <em>shape</em> (deep / admin / errand / social) and a size, never a start time.
+    A task you defer to a later day earns a push mark — at three, your secretary stops letting it slide quietly.
+  </footer>
+
+  <div class="desk">
+    <p class="say" id="say" aria-live="polite"><b>Secretary</b><span id="saytext">Tell me what you need to get done, or how you're feeling.</span><span class="aside" id="asidetext"></span></p>
+    <div class="deskbar">
+      <div class="tiers" role="group" aria-label="Thinking level">
+        <button class="tier" data-tier="quick" type="button" aria-pressed="false">Quick</button>
+        <button class="tier" data-tier="default" type="button" aria-pressed="true">Standard</button>
+      </div>
+      <span class="applied" id="applied">top tier disabled in code</span>
+    </div>
+    <div class="composer">
+      <textarea id="msg" rows="1" placeholder="I have 4 things due this week…"></textarea>
+      <button class="send" id="send" type="button">Send</button>
+      <button class="ghost" id="stop" type="button" hidden>Stop</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+// Bundled by build.mjs from src/core/*.js — do not edit this section.
+// Edit the modules in src/core/ and run: node build.mjs
+// Modules, in dependency order: day.js, task.js, actions.js, backup.js, history.js, parse.js, rollover.js, prompt.js, settings.js
+
+// ────────────────────────────────────────────────────────────────────
+// src/core/day.js
+// ────────────────────────────────────────────────────────────────────
+
+/**
+ * Day arithmetic for a queue that has days but no hours.
+ *
+ * Every day in this system is either an ISO calendar day ("2026-09-26") or the
+ * literal "someday". There is no time field anywhere in the schema, so all of
+ * this is string math over calendar days rather than arithmetic on Date objects
+ * carrying an offset. That distinction is the whole point: a Date is a moment,
+ * and a moment belongs to two different calendar days depending on where you
+ * are standing. A task belongs to a day.
+ */
+
+const SOMEDAY = "someday";
+const DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+function pad2(n) {
+  return String(n).padStart(2, "0");
+}
+
+/**
+ * True only for a real calendar day. The regex alone is not enough: it happily
+ * accepts "2026-13-45", so the parts are round-tripped through a UTC date and
+ * compared back. February 30th fails here, as it should.
+ */
+function isIsoDay(value) {
+  if (typeof value !== "string" || !DAY_PATTERN.test(value)) return false;
+  const year = Number(value.slice(0, 4));
+  const month = Number(value.slice(5, 7));
+  const day = Number(value.slice(8, 10));
+  if (month < 1 || month > 12 || day < 1 || day > 31) return false;
+  const probe = new Date(Date.UTC(year, month - 1, day));
+  return (
+    probe.getUTCFullYear() === year &&
+    probe.getUTCMonth() === month - 1 &&
+    probe.getUTCDate() === day
+  );
+}
+
+/** True for anything the schema accepts in a `day` field. */
+function isDayKey(value) {
+  return value === SOMEDAY || isIsoDay(value);
+}
+
+/** The browser's own idea of today. Used only as a fallback. */
+function localDay(now = new Date()) {
+  return `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`;
+}
+
+/**
+ * Today, as it reads on the wall in `timeZone`.
+ *
+ * This is the fix for the travel bug. `localDay` asks the browser, which means
+ * boarding a flight silently rewrites which day "today" is and files tasks
+ * against the wrong one. Anchoring to a stored home zone makes the queue stable
+ * while the traveller is not.
+ *
+ * Unknown or unsupported zones fall back to local rather than throwing, because
+ * a bad stored preference must not be able to break the whole page.
+ */
+function todayIn(timeZone, now = new Date()) {
+  if (typeof timeZone === "string" && timeZone) {
+    try {
+      const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit"
+      }).formatToParts(now);
+      const pick = (type) => {
+        const hit = parts.find((p) => p.type === type);
+        return hit ? hit.value : "";
+      };
+      const key = `${pick("year")}-${pick("month")}-${pick("day")}`;
+      if (isIsoDay(key)) return key;
+    } catch (err) {
+      /* unknown zone: fall through to local */
+    }
+  }
+  return localDay(now);
+}
+
+/** The zone this environment thinks it is in, or "" if it will not say. */
+function resolveZone() {
+  try {
+    return new Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+  } catch (err) {
+    return "";
+  }
+}
+
+function isValidZone(zone) {
+  if (typeof zone !== "string" || !zone) return false;
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: zone });
+    return true;
+  } catch (err) {
+    return false;
+  }
+}
+
+/**
+ * Shift a calendar day by whole days. "someday" is a fixed point — it has no
+ * position on the calendar, so nothing can be added to it.
+ */
+function addDays(dayKey, n) {
+  if (!isIsoDay(dayKey)) return dayKey;
+  const year = Number(dayKey.slice(0, 4));
+  const month = Number(dayKey.slice(5, 7));
+  const day = Number(dayKey.slice(8, 10));
+  const shifted = new Date(Date.UTC(year, month - 1, day) + n * 86400000);
+  return `${shifted.getUTCFullYear()}-${pad2(shifted.getUTCMonth() + 1)}-${pad2(
+    shifted.getUTCDate()
+  )}`;
+}
+
+/**
+ * Chronological order, with "someday" sorting after every dated day.
+ *
+ * That ordering is what makes push detection a one-liner: deferring to
+ * "someday" is the furthest deferral there is, and pulling a task from
+ * "someday" onto a real day is never a deferral.
+ */
+function compareDays(a, b) {
+  if (a === b) return 0;
+  if (a === SOMEDAY) return 1;
+  if (b === SOMEDAY) return -1;
+  return a < b ? -1 : 1;
+}
+
+function isBefore(a, b) {
+  return compareDays(a, b) < 0;
+}
+
+function isAfter(a, b) {
+  return compareDays(a, b) > 0;
+}
+
+/** Whole days from `a` to `b`, or null when either side is not a dated day. */
+function daysBetween(a, b) {
+  if (!isIsoDay(a) || !isIsoDay(b)) return null;
+  const at = Date.UTC(Number(a.slice(0, 4)), Number(a.slice(5, 7)) - 1, Number(a.slice(8, 10)));
+  const bt = Date.UTC(Number(b.slice(0, 4)), Number(b.slice(5, 7)) - 1, Number(b.slice(8, 10)));
+  return Math.round((bt - at) / 86400000);
+}
+
+/** A dated day is overdue when it is strictly before today. "someday" never is. */
+function isOverdue(dayKey, today) {
+  return isIsoDay(dayKey) && isIsoDay(today) && dayKey < today;
+}
+
+/**
+ * "Fri 26 Sep" for a dated day, "" for someday. Noon is used to build the Date
+ * so that a viewer west of UTC cannot see the label slip to the previous day.
+ */
+function prettyDay(dayKey, locale) {
+  if (dayKey === SOMEDAY) return "";
+  if (!isIsoDay(dayKey)) return String(dayKey);
+  const at = new Date(`${dayKey}T12:00:00`);
+  if (Number.isNaN(at.getTime())) return dayKey;
+  try {
+    return at.toLocaleDateString(locale || undefined, {
+      weekday: "short",
+      day: "numeric",
+      month: "short"
+    });
+  } catch (err) {
+    return dayKey;
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────
+// src/core/task.js
+// ────────────────────────────────────────────────────────────────────
+
+/**
+ * The task schema, its coercions, and the day grouping the UI renders from.
+ *
+ * Nothing here trusts its input. Every field arrives from one of three places
+ * that can all be wrong in different ways: a language model's JSON, a document
+ * store written by an older version of this page, or an imported backup file.
+ * So each field has a coercion that always returns something valid, and the
+ * normaliser is the only way a task enters the running state.
+ */
+
+const SHAPES = ["deep", "admin", "errand", "social"];
+const SIZES = ["S", "M", "L"];
+const STATUSES = ["open", "done"];
+
+const TITLE_MAX = 200;
+const DEFAULT_SHAPE = "admin";
+const DEFAULT_SIZE = "M";
+
+const SHAPE_LABEL = {
+  deep: "deep work",
+  admin: "admin",
+  errand: "errand",
+  social: "social"
+};
+
+const SIZE_LABEL = { S: "small", M: "medium", L: "large" };
+
+/** Group identifiers, in render order. */
+const GROUP_OVERDUE = "overdue";
+const GROUP_TODAY = "today";
+const GROUP_TOMORROW = "tomorrow";
+const GROUP_LATER = "later";
+const GROUP_SOMEDAY = "someday";
+
+function coerceTitle(value) {
+  const text = String(value === undefined || value === null ? "" : value)
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!text) return "Untitled";
+  return text.slice(0, TITLE_MAX);
+}
+
+function coerceShape(value) {
+  return SHAPES.indexOf(value) >= 0 ? value : DEFAULT_SHAPE;
+}
+
+function coerceSize(value) {
+  if (typeof value === "string" && SIZES.indexOf(value.toUpperCase()) >= 0) {
+    return value.toUpperCase();
+  }
+  return DEFAULT_SIZE;
+}
+
+function coerceDay(value, fallback) {
+  if (isDayKey(value)) return value;
+  return isDayKey(fallback) ? fallback : SOMEDAY;
+}
+
+function coerceStatus(value) {
+  return value === "done" ? "done" : "open";
+}
+
+/** Non-negative integer, clamped. Guards a corrupt `pushes` from going negative. */
+function coerceCount(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return Math.min(Math.floor(n), 9999);
+}
+
+function coerceOrder(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(-1, Math.min(Math.floor(n), 99999));
+}
+
+function coerceStamp(value) {
+  if (typeof value !== "string" || !value) return null;
+  return Number.isNaN(Date.parse(value)) ? null : value;
+}
+
+/**
+ * The single entry point for a task into running state.
+ *
+ * `today` is required because an unusable `day` has to land somewhere, and
+ * today is the only honest default — a task with no day is a task for now, not
+ * a task that quietly disappears into "someday".
+ */
+function normalizeTask(raw, options) {
+  const opts = options || {};
+  const today = isIsoDay(opts.today) ? opts.today : null;
+  const src = raw && typeof raw === "object" ? raw : {};
+  const status = coerceStatus(src.status);
+  return {
+    id: String(src.id === undefined || src.id === null ? "" : src.id),
+    title: coerceTitle(src.title),
+    day: coerceDay(src.day, today || SOMEDAY),
+    shape: coerceShape(src.shape),
+    size: coerceSize(src.size),
+    order: coerceOrder(src.order),
+    status,
+    pushes: coerceCount(src.pushes),
+    createdAt: coerceStamp(src.createdAt),
+    doneAt: status === "done" ? coerceStamp(src.doneAt) : null,
+    rolledAt: coerceStamp(src.rolledAt)
+  };
+}
+
+/** The shape written to the store. Ids live in the document key, not the body. */
+function toDocument(task) {
+  return {
+    title: task.title,
+    day: task.day,
+    shape: task.shape,
+    size: task.size,
+    order: task.order,
+    status: task.status,
+    pushes: task.pushes,
+    createdAt: task.createdAt,
+    doneAt: task.doneAt,
+    rolledAt: task.rolledAt
+  };
+}
+
+function isOpen(task) {
+  return !!task && task.status !== "done";
+}
+
+function openTasks(tasks) {
+  return (tasks || []).filter(isOpen);
+}
+
+function findTask(tasks, id) {
+  const key = String(id);
+  return (tasks || []).find((t) => t && t.id === key) || null;
+}
+
+function tasksForDay(tasks, day) {
+  return (tasks || []).filter((t) => t && t.day === day);
+}
+
+function sortByOrder(tasks) {
+  return (tasks || []).slice().sort((a, b) => {
+    const delta = (a.order || 0) - (b.order || 0);
+    if (delta !== 0) return delta;
+    return String(a.id) < String(b.id) ? -1 : 1;
+  });
+}
+
+/** The index a new task takes at the end of its day. */
+function nextOrder(tasks, day) {
+  return tasksForDay(openTasks(tasks), day).length;
+}
+
+/** The full ordered id list for one day — the payload of an `order` action. */
+function orderedIds(tasks, day) {
+  return sortByOrder(tasksForDay(openTasks(tasks), day)).map((t) => t.id);
+}
+
+/**
+ * Bucket tasks into the sections the board renders.
+ *
+ * The overdue bucket is the correctness fix in this version. Before it existed,
+ * the day router was a chain of equality tests against today, tomorrow and
+ * "someday", with everything else falling through to "Later this week" — so a
+ * task from last Tuesday was displayed, in earnest, as upcoming. Nothing in the
+ * UI ever said a day had passed, which is exactly the failure a deferral
+ * tracker cannot have.
+ */
+function groupTasks(tasks, options) {
+  const opts = options || {};
+  const today = isIsoDay(opts.today) ? opts.today : null;
+  const tomorrow = today ? addDays(today, 1) : null;
+  const all = tasks || [];
+
+  const groups = [
+    { key: GROUP_OVERDUE, kind: GROUP_OVERDUE, name: "Overdue", items: [] },
+    { key: GROUP_TODAY, kind: GROUP_TODAY, name: "Today", day: today, items: [] },
+    { key: GROUP_TOMORROW, kind: GROUP_TOMORROW, name: "Tomorrow", day: tomorrow, items: [] },
+    { key: GROUP_LATER, kind: GROUP_LATER, name: "Later", items: [] },
+    { key: GROUP_SOMEDAY, kind: GROUP_SOMEDAY, name: "Someday", items: [] }
+  ];
+  const byKind = {};
+  groups.forEach((g) => {
+    byKind[g.kind] = g;
+  });
+
+  all.filter(isOpen).forEach((task) => {
+    if (isOverdue(task.day, today)) byKind[GROUP_OVERDUE].items.push(task);
+    else if (today && task.day === today) byKind[GROUP_TODAY].items.push(task);
+    else if (tomorrow && task.day === tomorrow) byKind[GROUP_TOMORROW].items.push(task);
+    else if (task.day === SOMEDAY) byKind[GROUP_SOMEDAY].items.push(task);
+    else byKind[GROUP_LATER].items.push(task);
+  });
+
+  // Overdue and Later span several days, so they sort by day first. The two
+  // single-day buckets sort purely by the order the user or agent chose.
+  [GROUP_OVERDUE, GROUP_LATER].forEach((kind) => {
+    byKind[kind].items.sort((a, b) => {
+      const byDay = compareDays(a.day, b.day);
+      return byDay !== 0 ? byDay : (a.order || 0) - (b.order || 0);
+    });
+  });
+  [GROUP_TODAY, GROUP_TOMORROW, GROUP_SOMEDAY].forEach((kind) => {
+    byKind[kind].items = sortByOrder(byKind[kind].items);
+  });
+
+  // Today's completed work stays visible, below the open queue, as evidence.
+  const doneToday = today
+    ? all
+        .filter((t) => t && t.status === "done" && t.day === today)
+        .sort((a, b) => String(a.doneAt || "") < String(b.doneAt || "") ? -1 : 1)
+    : [];
+  byKind[GROUP_TODAY].items = byKind[GROUP_TODAY].items.concat(doneToday);
+
+  groups.forEach((g) => {
+    g.openCount = g.items.filter(isOpen).length;
+  });
+  return groups;
+}
+
+/** Only these sections let a task be nudged with the up/down controls. */
+function isReorderable(kind) {
+  return kind === GROUP_TODAY || kind === GROUP_TOMORROW || kind === GROUP_SOMEDAY;
+}
+
+/**
+ * Validate a manual edit. Returns only the fields that are both recognised and
+ * changed, so an untouched form submits nothing and costs no write.
+ */
+function planEdit(task, patch) {
+  const fields = {};
+  const rejected = [];
+  if (!task) return { fields, rejected: [{ field: "task", reason: "unknown task" }] };
+  const src = patch && typeof patch === "object" ? patch : {};
+
+  if ("title" in src) {
+    const title = coerceTitle(src.title);
+    if (!String(src.title || "").trim()) rejected.push({ field: "title", reason: "empty" });
+    else if (title !== task.title) fields.title = title;
+  }
+  if ("shape" in src) {
+    if (SHAPES.indexOf(src.shape) < 0) rejected.push({ field: "shape", reason: "unknown shape" });
+    else if (src.shape !== task.shape) fields.shape = src.shape;
+  }
+  if ("size" in src) {
+    const size = coerceSize(src.size);
+    if (SIZES.indexOf(String(src.size).toUpperCase()) < 0) {
+      rejected.push({ field: "size", reason: "unknown size" });
+    } else if (size !== task.size) fields.size = size;
+  }
+  if ("day" in src) {
+    if (!isDayKey(src.day)) rejected.push({ field: "day", reason: "not a day" });
+    else if (src.day !== task.day) fields.day = src.day;
+  }
+  return { fields, rejected };
+}
+
+// ────────────────────────────────────────────────────────────────────
+// src/core/actions.js
+// ────────────────────────────────────────────────────────────────────
+
+/**
+ * The action layer: the boundary between what the model proposes and what is
+ * written.
+ *
+ * The model never touches storage. It returns a list of proposed actions, and
+ * this module compiles that list into a set of plain operation descriptors —
+ * create, patch, delete, profile — which the shell then executes against the
+ * document store. Planning is entirely pure: no IO, no clock, no randomness
+ * except an injected id factory. That is what makes the safety property
+ * testable rather than merely asserted.
+ *
+ * Two properties hold by construction:
+ *
+ *   1. The op whitelist is closed. There is no dynamic dispatch and no property
+ *      lookup from a model-supplied string, so an unrecognised op cannot reach
+ *      a writer. It is recorded as rejected instead of being dropped in
+ *      silence, because a plan that half-applied is something the user needs to
+ *      be told about.
+ *   2. Every field is coerced by `task.js` before it lands in an op. A
+ *      malformed or adversarial response can therefore produce a *wrong plan* —
+ *      that risk is real and irreducible — but it cannot produce an arbitrary
+ *      write.
+ */
+
+/** The closed set. Anything not on this list is rejected by name. */
+const AGENT_OPS = ["add", "order", "move", "done", "drop", "habit", "goal"];
+
+const MAX_ACTIONS = 40;
+const MAX_HABITS = 30;
+const MAX_GOALS = 15;
+const NOTE_MAX = 180;
+const PUSH_ALARM = 3;
+
+function cloneTask(task) {
+  return Object.assign({}, task);
+}
+
+function emptyProfile(profile) {
+  const src = profile && typeof profile === "object" ? profile : {};
+  return {
+    goals: Array.isArray(src.goals) ? src.goals.slice() : [],
+    habits: Array.isArray(src.habits) ? src.habits.slice() : []
+  };
+}
+
+function appendCapped(list, text, cap) {
+  const clean = String(text).replace(/\s+/g, " ").trim().slice(0, NOTE_MAX);
+  if (!clean) return { list, added: false };
+  if (list.indexOf(clean) >= 0) return { list, added: false };
+  const next = list.concat([clean]);
+  return { list: next.length > cap ? next.slice(-cap) : next, added: true };
+}
+
+/**
+ * Compile proposed actions into validated operations.
+ *
+ * @param {Array}  actions  raw `actions` array from the model
+ * @param {Object} state    { tasks, profile } as currently held
+ * @param {Object} ctx      { today, now, makeId }
+ * @returns {{ops: Array, log: string[], rejected: Array, tasks: Array, profile: Object, alarms: Array}}
+ */
+function planActions(actions, state, ctx) {
+  const options = ctx || {};
+  const today = isIsoDay(options.today) ? options.today : null;
+  const now = typeof options.now === "string" ? options.now : new Date().toISOString();
+  const makeId = typeof options.makeId === "function" ? options.makeId : defaultIdFactory();
+
+  const ops = [];
+  const log = [];
+  const rejected = [];
+  const alarms = [];
+
+  // A working copy, mutated as the plan is built, so that later actions in the
+  // same batch see the effect of earlier ones. An `add` followed by an `order`
+  // referencing the new task works because ids are assigned here, up front,
+  // rather than by the store on write.
+  let tasks = (state && Array.isArray(state.tasks) ? state.tasks : []).map(cloneTask);
+  let profile = emptyProfile(state && state.profile);
+  let profileTouched = false;
+
+  if (!Array.isArray(actions)) {
+    if (actions !== undefined && actions !== null) {
+      rejected.push({ index: -1, op: null, reason: "actions was not an array" });
+    }
+    return { ops, log, rejected, tasks, profile, alarms };
+  }
+
+  if (actions.length > MAX_ACTIONS) {
+    rejected.push({
+      index: MAX_ACTIONS,
+      op: null,
+      reason: `batch capped at ${MAX_ACTIONS}; ${actions.length - MAX_ACTIONS} dropped`
+    });
+  }
+
+  actions.slice(0, MAX_ACTIONS).forEach((action, index) => {
+    const reject = (reason) => rejected.push({ index, op: action && action.op, reason });
+
+    if (!action || typeof action !== "object" || Array.isArray(action)) {
+      reject("not an object");
+      return;
+    }
+    if (AGENT_OPS.indexOf(action.op) < 0) {
+      reject(`unknown op ${JSON.stringify(action.op)}`);
+      return;
+    }
+
+    if (action.op === "add") {
+      if (!String(action.title || "").trim()) {
+        reject("add without a title");
+        return;
+      }
+      const day = isDayKey(action.day) ? action.day : today || SOMEDAY;
+      if (!isDayKey(action.day)) {
+        rejected.push({ index, op: "add", reason: `day ${JSON.stringify(action.day)} not usable; used ${day}` });
+      }
+      if (action.shape !== undefined && SHAPES.indexOf(action.shape) < 0) {
+        rejected.push({ index, op: "add", reason: `shape ${JSON.stringify(action.shape)} unknown; used admin` });
+      }
+      if (action.size !== undefined && SIZES.indexOf(String(action.size).toUpperCase()) < 0) {
+        rejected.push({ index, op: "add", reason: `size ${JSON.stringify(action.size)} unknown; used M` });
+      }
+      const task = normalizeTask(
+        {
+          id: makeId(),
+          title: coerceTitle(action.title),
+          day,
+          shape: coerceShape(action.shape),
+          size: coerceSize(action.size),
+          order: nextOrder(tasks, day),
+          status: "open",
+          pushes: 0,
+          createdAt: now
+        },
+        { today }
+      );
+      tasks = tasks.concat([task]);
+      ops.push({ kind: "create", id: task.id, task });
+      log.push(`added "${task.title}"`);
+      return;
+    }
+
+    if (action.op === "order") {
+      if (!isDayKey(action.day)) {
+        reject(`order for day ${JSON.stringify(action.day)}`);
+        return;
+      }
+      if (!Array.isArray(action.ids)) {
+        reject("order without an ids array");
+        return;
+      }
+      const onDay = tasksForDay(tasks, action.day).filter(isOpen);
+      const seen = new Set();
+      let position = 0;
+      action.ids.forEach((rawId) => {
+        const id = String(rawId);
+        if (seen.has(id)) {
+          rejected.push({ index, op: "order", reason: `id ${id} listed twice` });
+          return;
+        }
+        const task = onDay.find((t) => t.id === id);
+        if (!task) {
+          // Reordering cannot be a smuggled move: an id that is not already on
+          // this day is refused rather than relocated.
+          rejected.push({ index, op: "order", reason: `id ${id} is not an open task on ${action.day}` });
+          return;
+        }
+        seen.add(id);
+        if (task.order !== position) {
+          task.order = position;
+          ops.push({ kind: "patch", id, fields: { order: position } });
+        }
+        position += 1;
+      });
+      // Anything on the day the model forgot to mention keeps its relative
+      // place after the listed ones, rather than colliding at index 0.
+      onDay
+        .filter((t) => !seen.has(t.id))
+        .sort((a, b) => (a.order || 0) - (b.order || 0))
+        .forEach((task) => {
+          if (task.order !== position) {
+            task.order = position;
+            ops.push({ kind: "patch", id: task.id, fields: { order: position } });
+          }
+          position += 1;
+        });
+      if (seen.size) log.push(`reordered ${action.day === today ? "today" : action.day}`);
+      return;
+    }
+
+    if (action.op === "move") {
+      const task = findTask(tasks, action.id);
+      if (!task) {
+        reject(`move of unknown id ${JSON.stringify(action.id)}`);
+        return;
+      }
+      if (!isDayKey(action.day)) {
+        reject(`move to day ${JSON.stringify(action.day)}`);
+        return;
+      }
+      if (task.day === action.day) {
+        reject(`"${task.title}" is already on ${action.day}`);
+        return;
+      }
+      // A push is a deferral, and only a deferral. Pulling work earlier, or off
+      // "someday" onto a real date, must never be punished — otherwise the
+      // counter stops measuring avoidance and starts measuring activity.
+      const deferred = isAfter(action.day, task.day);
+      const pushes = coerceCount(task.pushes) + (deferred ? 1 : 0);
+      const fields = {
+        day: action.day,
+        pushes,
+        order: nextOrder(tasks, action.day)
+      };
+      task.day = fields.day;
+      task.pushes = pushes;
+      task.order = fields.order;
+      ops.push({ kind: "patch", id: task.id, fields });
+      log.push(`moved "${task.title}" to ${action.day}${deferred ? ` (push ${pushes})` : ""}`);
+      if (deferred && pushes >= PUSH_ALARM) {
+        alarms.push({ id: task.id, title: task.title, pushes });
+      }
+      return;
+    }
+
+    if (action.op === "done") {
+      const task = findTask(tasks, action.id);
+      if (!task) {
+        reject(`done for unknown id ${JSON.stringify(action.id)}`);
+        return;
+      }
+      if (task.status === "done") {
+        reject(`"${task.title}" was already done`);
+        return;
+      }
+      task.status = "done";
+      task.doneAt = now;
+      ops.push({ kind: "patch", id: task.id, fields: { status: "done", doneAt: now } });
+      log.push(`completed "${task.title}"`);
+      return;
+    }
+
+    if (action.op === "drop") {
+      const task = findTask(tasks, action.id);
+      if (!task) {
+        reject(`drop of unknown id ${JSON.stringify(action.id)}`);
+        return;
+      }
+      tasks = tasks.filter((t) => t.id !== task.id);
+      ops.push({ kind: "delete", id: task.id });
+      log.push(`dropped "${task.title}"`);
+      return;
+    }
+
+    if (action.op === "habit" || action.op === "goal") {
+      const isHabit = action.op === "habit";
+      if (!String(action.text || "").trim()) {
+        reject(`${action.op} without text`);
+        return;
+      }
+      const cap = isHabit ? MAX_HABITS : MAX_GOALS;
+      const result = appendCapped(isHabit ? profile.habits : profile.goals, action.text, cap);
+      if (!result.added) {
+        reject(`${action.op} already recorded`);
+        return;
+      }
+      if (isHabit) profile.habits = result.list;
+      else profile.goals = result.list;
+      profileTouched = true;
+      log.push(`${isHabit ? "noted habit" : "recorded goal"}: ${result.list[result.list.length - 1]}`);
+    }
+  });
+
+  if (profileTouched) {
+    ops.push({ kind: "profile", profile: { goals: profile.goals, habits: profile.habits } });
+  }
+
+  return { ops, log, rejected, tasks, profile, alarms };
+}
+
+/**
+ * Ids are generated on the client so that a batch can reference what it just
+ * created. Time-ordered prefix keeps store keys roughly sorted; the random
+ * suffix is collision avoidance, not a security property.
+ */
+function defaultIdFactory() {
+  let seq = 0;
+  return function makeId() {
+    seq += 1;
+    const stamp = Date.now().toString(36);
+    const rand = Math.random().toString(36).slice(2, 7);
+    return `t${stamp}${seq.toString(36)}${rand}`;
+  };
+}
+
+/** A deterministic factory, for tests and for replaying a plan. */
+function sequentialIdFactory(prefix) {
+  let seq = 0;
+  return function makeId() {
+    seq += 1;
+    return `${prefix || "t"}${seq}`;
+  };
+}
+
+/** One-line human summary of what was refused, for the status line. */
+function describeRejections(rejected) {
+  if (!rejected || !rejected.length) return "";
+  if (rejected.length === 1) return `Ignored one instruction: ${rejected[0].reason}.`;
+  return `Ignored ${rejected.length} instructions: ${rejected.map((r) => r.reason).join("; ")}.`;
+}
+
+// ────────────────────────────────────────────────────────────────────
+// src/core/backup.js
+// ────────────────────────────────────────────────────────────────────
+
+/**
+ * Getting the data out, and back in.
+ *
+ * Everything this agent knows lives in one artifact's document store. That store
+ * is durable and it is not yours: you cannot query it, point another tool at it,
+ * or keep a copy. For a tool meant to be used daily for months, and to
+ * accumulate habits that are the whole payoff, "your data is somewhere you
+ * cannot reach" is a product defect rather than an infrastructure detail.
+ *
+ * Export is therefore plain, versioned, human-readable JSON. Import validates
+ * every task through the same normaliser the running state uses, so a
+ * hand-edited or downgraded file cannot introduce a shape the app has to defend
+ * against later.
+ */
+
+const BACKUP_KIND = "order-of-play.backup";
+const BACKUP_VERSION = 1;
+
+const IMPORT_REPLACE = "replace";
+const IMPORT_MERGE = "merge";
+const IMPORT_MODES = [IMPORT_REPLACE, IMPORT_MERGE];
+
+/** A complete, portable copy of the agent's state. */
+function buildBackup(state, options) {
+  const opts = options || {};
+  const src = state && typeof state === "object" ? state : {};
+  const profile = src.profile && typeof src.profile === "object" ? src.profile : {};
+  const tasks = Array.isArray(src.tasks) ? src.tasks : [];
+  return {
+    kind: BACKUP_KIND,
+    version: BACKUP_VERSION,
+    exportedAt: typeof opts.now === "string" ? opts.now : new Date().toISOString(),
+    timeZone: typeof opts.timeZone === "string" ? opts.timeZone : "",
+    counts: {
+      tasks: tasks.length,
+      open: tasks.filter((t) => t && t.status !== "done").length
+    },
+    tasks: tasks.map((task) => Object.assign({ id: task.id }, toDocument(task))),
+    profile: {
+      goals: Array.isArray(profile.goals) ? profile.goals.slice(0, MAX_GOALS) : [],
+      habits: Array.isArray(profile.habits) ? profile.habits.slice(0, MAX_HABITS) : []
+    },
+    log: Array.isArray(src.log) ? src.log.slice(-100) : []
+  };
+}
+
+function backupFilename(now) {
+  const stamp = (typeof now === "string" ? now : new Date().toISOString()).slice(0, 10);
+  return `order-of-play-${stamp}.json`;
+}
+
+/**
+ * Validate an export back into usable state.
+ *
+ * Refuses on the things that mean "this is not our file" — wrong kind, a version
+ * from the future, no task array. Everything else is repaired and reported, so
+ * one malformed row does not cost the user the other two hundred.
+ */
+function readBackup(input, options) {
+  const opts = options || {};
+  const today = isIsoDay(opts.today) ? opts.today : null;
+  const notes = [];
+
+  let raw = input;
+  if (typeof input === "string") {
+    try {
+      raw = JSON.parse(input);
+    } catch (err) {
+      return { ok: false, error: "That file isn't valid JSON.", notes, data: null };
+    }
+  }
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return { ok: false, error: "That file doesn't contain a backup object.", notes, data: null };
+  }
+  if (raw.kind !== BACKUP_KIND) {
+    return {
+      ok: false,
+      error: "That isn't an Order of Play backup.",
+      notes,
+      data: null
+    };
+  }
+  const version = Number(raw.version);
+  if (!Number.isFinite(version) || version < 1) {
+    return { ok: false, error: "That backup has no usable version number.", notes, data: null };
+  }
+  if (version > BACKUP_VERSION) {
+    return {
+      ok: false,
+      error: `That backup is version ${version}; this build reads up to ${BACKUP_VERSION}.`,
+      notes,
+      data: null
+    };
+  }
+  if (!Array.isArray(raw.tasks)) {
+    return { ok: false, error: "That backup has no task list.", notes, data: null };
+  }
+
+  const seen = new Set();
+  const tasks = [];
+  raw.tasks.forEach((row, index) => {
+    if (!row || typeof row !== "object") {
+      notes.push(`Row ${index + 1} was not an object and was skipped.`);
+      return;
+    }
+    const task = normalizeTask(row, { today });
+    if (!task.id) {
+      notes.push(`Row ${index + 1} ("${task.title}") had no id and was skipped.`);
+      return;
+    }
+    if (seen.has(task.id)) {
+      notes.push(`Row ${index + 1} repeated id ${task.id} and was skipped.`);
+      return;
+    }
+    seen.add(task.id);
+    tasks.push(task);
+  });
+
+  const profileSrc = raw.profile && typeof raw.profile === "object" ? raw.profile : {};
+  const strings = (list, cap) =>
+    (Array.isArray(list) ? list : [])
+      .filter((s) => typeof s === "string" && s.trim())
+      .map((s) => s.trim())
+      .slice(-cap);
+
+  return {
+    ok: true,
+    error: "",
+    notes,
+    data: {
+      version,
+      exportedAt: typeof raw.exportedAt === "string" ? raw.exportedAt : "",
+      timeZone: typeof raw.timeZone === "string" ? raw.timeZone : "",
+      tasks,
+      profile: {
+        goals: strings(profileSrc.goals, MAX_GOALS),
+        habits: strings(profileSrc.habits, MAX_HABITS)
+      },
+      log: Array.isArray(raw.log) ? raw.log.filter((e) => e && typeof e === "object") : []
+    }
+  };
+}
+
+/**
+ * The ops that bring imported data into the live store.
+ *
+ * `replace` is destructive and says so in the UI. `merge` keeps what is there
+ * and re-ids every incoming task, because two exports of the same queue share
+ * ids and merging on id would silently overwrite rather than combine.
+ */
+function planImport(current, incoming, options) {
+  const opts = options || {};
+  const mode = IMPORT_MODES.indexOf(opts.mode) >= 0 ? opts.mode : IMPORT_REPLACE;
+  const makeId = typeof opts.makeId === "function" ? opts.makeId : null;
+  const existing = Array.isArray(current && current.tasks) ? current.tasks : [];
+  const existingProfile =
+    current && current.profile && typeof current.profile === "object"
+      ? current.profile
+      : { goals: [], habits: [] };
+  const ops = [];
+
+  if (mode === IMPORT_REPLACE) {
+    existing.forEach((task) => ops.push({ kind: "delete", id: task.id }));
+    incoming.tasks.forEach((task) => ops.push({ kind: "create", id: task.id, task }));
+    ops.push({
+      kind: "profile",
+      profile: { goals: incoming.profile.goals.slice(), habits: incoming.profile.habits.slice() }
+    });
+    return {
+      ops,
+      mode,
+      added: incoming.tasks.length,
+      removed: existing.length
+    };
+  }
+
+  if (!makeId) {
+    return { ops: [], mode, added: 0, removed: 0, error: "merge needs an id factory" };
+  }
+
+  incoming.tasks.forEach((task) => {
+    const copy = Object.assign({}, task, { id: makeId() });
+    ops.push({ kind: "create", id: copy.id, task: copy });
+  });
+
+  const union = (a, b, cap) => {
+    const out = (Array.isArray(a) ? a : []).slice();
+    (Array.isArray(b) ? b : []).forEach((value) => {
+      if (out.indexOf(value) < 0) out.push(value);
+    });
+    return out.length > cap ? out.slice(-cap) : out;
+  };
+  const goals = union(existingProfile.goals, incoming.profile.goals, MAX_GOALS);
+  const habits = union(existingProfile.habits, incoming.profile.habits, MAX_HABITS);
+  ops.push({ kind: "profile", profile: { goals, habits } });
+
+  return { ops, mode, added: incoming.tasks.length, removed: 0 };
+}
+
+// ────────────────────────────────────────────────────────────────────
+// src/core/history.js
+// ────────────────────────────────────────────────────────────────────
+
+/**
+ * Undo, for a queue that a language model is allowed to rearrange.
+ *
+ * A single turn can legitimately produce a dozen writes: four adds, a reorder
+ * across two days, a move that charges a push. When that plan is wrong — and a
+ * model asked to reshuffle a day will sometimes be confidently wrong — there
+ * was previously no way back. The user's only recourse was to reconstruct the
+ * previous order from memory, by hand, which is a worse job than the one they
+ * delegated.
+ *
+ * The approach is snapshot-and-diff rather than an inverse-operation log.
+ * Inverting operations individually is where undo implementations go wrong:
+ * every op needs a correct inverse, the inverses have to compose in reverse,
+ * and one mistake corrupts state silently. A snapshot cannot be wrong about
+ * what the state was. The cost is memory, and for a single-user queue of a few
+ * hundred tasks that cost is irrelevant.
+ *
+ * Restoring is itself expressed as ops and handed to the same executor that
+ * applies agent plans, so there is exactly one code path that writes.
+ */
+
+const TRACKED_FIELDS = [
+  "title",
+  "day",
+  "shape",
+  "size",
+  "order",
+  "status",
+  "pushes",
+  "createdAt",
+  "doneAt",
+  "rolledAt"
+];
+
+const HISTORY_LIMIT = 25;
+
+/** A structural copy of everything undo is responsible for. */
+function snapshot(state) {
+  const src = state && typeof state === "object" ? state : {};
+  const profile = src.profile && typeof src.profile === "object" ? src.profile : {};
+  return {
+    tasks: (Array.isArray(src.tasks) ? src.tasks : []).map((t) => Object.assign({}, t)),
+    profile: {
+      goals: Array.isArray(profile.goals) ? profile.goals.slice() : [],
+      habits: Array.isArray(profile.habits) ? profile.habits.slice() : []
+    }
+  };
+}
+
+function sameList(a, b) {
+  if (a.length !== b.length) return false;
+  return a.every((value, i) => value === b[i]);
+}
+
+/**
+ * The ops that turn `current` into `target`.
+ *
+ * Only changed fields are patched, so undoing a reorder of three tasks writes
+ * three documents rather than the whole queue.
+ */
+function planRestore(current, target) {
+  const from = snapshot(current);
+  const to = snapshot(target);
+  const ops = [];
+
+  const byId = new Map();
+  from.tasks.forEach((t) => byId.set(t.id, t));
+  const wanted = new Set();
+
+  to.tasks.forEach((task) => {
+    wanted.add(task.id);
+    const existing = byId.get(task.id);
+    if (!existing) {
+      ops.push({ kind: "create", id: task.id, task });
+      return;
+    }
+    const fields = {};
+    TRACKED_FIELDS.forEach((key) => {
+      const a = existing[key] === undefined ? null : existing[key];
+      const b = task[key] === undefined ? null : task[key];
+      if (a !== b) fields[key] = task[key] === undefined ? null : task[key];
+    });
+    if (Object.keys(fields).length) ops.push({ kind: "patch", id: task.id, fields });
+  });
+
+  from.tasks.forEach((task) => {
+    if (!wanted.has(task.id)) ops.push({ kind: "delete", id: task.id });
+  });
+
+  if (
+    !sameList(from.profile.goals, to.profile.goals) ||
+    !sameList(from.profile.habits, to.profile.habits)
+  ) {
+    ops.push({ kind: "profile", profile: { goals: to.profile.goals, habits: to.profile.habits } });
+  }
+
+  return { ops, changed: ops.length };
+}
+
+/**
+ * A bounded undo/redo stack.
+ *
+ * `record` is called with the state as it was *before* a change, together with
+ * a label describing the change, so the UI can offer "Undo reshuffle" rather
+ * than a bare arrow. Recording a new change clears the redo branch, which is
+ * the behaviour every editor has trained people to expect.
+ */
+function createHistory(limit) {
+  const cap = Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : HISTORY_LIMIT;
+  let past = [];
+  let future = [];
+
+  return {
+    get limit() {
+      return cap;
+    },
+    get canUndo() {
+      return past.length > 0;
+    },
+    get canRedo() {
+      return future.length > 0;
+    },
+    get undoLabel() {
+      return past.length ? past[past.length - 1].label : "";
+    },
+    get redoLabel() {
+      return future.length ? future[future.length - 1].label : "";
+    },
+    get depth() {
+      return past.length;
+    },
+
+    record(before, label) {
+      past.push({ state: snapshot(before), label: String(label || "change") });
+      if (past.length > cap) past = past.slice(-cap);
+      future = [];
+    },
+
+    /** Returns the ops to apply, or null when there is nothing to undo. */
+    undo(current) {
+      if (!past.length) return null;
+      const entry = past.pop();
+      future.push({ state: snapshot(current), label: entry.label });
+      if (future.length > cap) future = future.slice(-cap);
+      const plan = planRestore(current, entry.state);
+      return { ops: plan.ops, label: entry.label, state: entry.state };
+    },
+
+    redo(current) {
+      if (!future.length) return null;
+      const entry = future.pop();
+      past.push({ state: snapshot(current), label: entry.label });
+      if (past.length > cap) past = past.slice(-cap);
+      const plan = planRestore(current, entry.state);
+      return { ops: plan.ops, label: entry.label, state: entry.state };
+    },
+
+    clear() {
+      past = [];
+      future = [];
+    }
+  };
+}
+
+// ────────────────────────────────────────────────────────────────────
+// src/core/parse.js
+// ────────────────────────────────────────────────────────────────────
+
+/**
+ * Reading a model's reply as if it were a wire protocol, which it is not.
+ *
+ * The prompt asks for raw JSON and nothing else. That instruction is followed
+ * most of the time, and "most of the time" is not a contract. Replies arrive
+ * fenced in markdown, prefixed with a sentence of agreement, or occasionally
+ * with a trailing explanation. A parser that only accepts the specified format
+ * turns each of those into a failed turn and a lost plan.
+ *
+ * So the reader is deliberately tolerant about framing and strict about
+ * content. It will hunt for the JSON, and then refuse to guess at what it
+ * finds: a reply whose `actions` is not an array is an error, not something to
+ * be coerced into one.
+ */
+
+/**
+ * Three attempts, cheapest first: the whole string, a fenced block, then the
+ * outermost brace or bracket span. Returns null when nothing parses, and never
+ * throws.
+ */
+function parseLoose(raw) {
+  const text = String(raw === undefined || raw === null ? "" : raw).trim();
+  if (!text) return null;
+
+  try {
+    return JSON.parse(text);
+  } catch (err) {
+    /* not bare JSON */
+  }
+
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (fenced) {
+    try {
+      return JSON.parse(fenced[1].trim());
+    } catch (err) {
+      /* fence held something else */
+    }
+  }
+
+  const start = text.search(/[{[]/);
+  const end = Math.max(text.lastIndexOf("}"), text.lastIndexOf("]"));
+  if (start >= 0 && end > start) {
+    try {
+      return JSON.parse(text.slice(start, end + 1));
+    } catch (err) {
+      /* give up */
+    }
+  }
+  return null;
+}
+
+const REPLY_FALLBACK = "Done.";
+
+/**
+ * Parse and shape-check one agent turn.
+ *
+ * @returns {{ok: boolean, reply: string, actions: Array, error: string}}
+ *   `ok` false means nothing should be written. A reply that parses but carries
+ *   no actions is a legitimate conversational turn, not a failure.
+ */
+function readAgentReply(raw) {
+  const parsed = parseLoose(raw);
+  if (parsed === null) {
+    return { ok: false, reply: "", actions: [], error: "no JSON found in the reply" };
+  }
+  if (typeof parsed !== "object" || Array.isArray(parsed)) {
+    return { ok: false, reply: "", actions: [], error: "reply was not a JSON object" };
+  }
+
+  const reply =
+    typeof parsed.reply === "string" && parsed.reply.trim()
+      ? parsed.reply.trim()
+      : REPLY_FALLBACK;
+
+  if (parsed.actions === undefined || parsed.actions === null) {
+    return { ok: true, reply, actions: [], error: "" };
+  }
+  if (!Array.isArray(parsed.actions)) {
+    return { ok: true, reply, actions: [], error: "actions was not an array; none applied" };
+  }
+  return { ok: true, reply, actions: parsed.actions, error: "" };
+}
+
+/**
+ * Error codes the host's sampling capability raises, mapped to copy.
+ *
+ * Branching on a stable code rather than on message text is what keeps this
+ * from breaking when the host rewords something. An unmapped code gets generic
+ * copy rather than leaking an internal string into the interface.
+ */
+const ERROR_COPY = {
+  not_granted: "You'll need to allow this page to use Claude before I can help.",
+  sampling_disabled: "Claude isn't available on this account right now.",
+  rate_limited: "You've hit your Claude usage limit — try again in a bit.",
+  session_expired: "Your session expired. Sign in again and resend.",
+  invalid_json: "I garbled that one. Say it again?",
+  refused: "I can't act on that one.",
+  empty_completion: "I came back blank. Try saying it a different way.",
+  prompt_too_large: "Too much at once — clear some finished tasks first.",
+  cancelled: ""
+};
+
+function errorCopy(code) {
+  if (code && Object.prototype.hasOwnProperty.call(ERROR_COPY, code)) return ERROR_COPY[code];
+  return "Something went wrong reaching Claude. Try again.";
+}
+
+// ────────────────────────────────────────────────────────────────────
+// src/core/rollover.js
+// ────────────────────────────────────────────────────────────────────
+
+/**
+ * What to do with work whose day has passed.
+ *
+ * The queue has no hours, which means it also has no automatic sense of a day
+ * ending. Close the tab on Friday with three things unfinished and open it on
+ * Monday, and those three tasks are stranded on a date nobody is going to live
+ * through again. Before this module they were not merely stranded — they were
+ * filed under "Later this week", presented as upcoming.
+ *
+ * Rollover is the answer, and its one contentious decision is whether moving a
+ * task off a day that has already passed should count as a push.
+ *
+ * It does. The push counter exists to notice avoidance, and a task that sat
+ * through a whole day untouched is the most ordinary form avoidance takes. Not
+ * counting it would let the most-avoided work be the only work with a clean
+ * record. Two guards keep that honest rather than punitive:
+ *
+ *   · Rollover is never silent. It happens when the user asks for it, or under
+ *     a setting they turned on themselves.
+ *   · A task can earn at most one rollover push per calendar day, tracked in
+ *     `rolledAt`. Opening the app five times on Monday does not cost five
+ *     pushes, and a week away costs one, not seven.
+ */
+
+const ROLLOVER_OFF = "off";
+const ROLLOVER_ASK = "ask";
+const ROLLOVER_AUTO = "auto";
+const ROLLOVER_MODES = [ROLLOVER_OFF, ROLLOVER_ASK, ROLLOVER_AUTO];
+
+function coerceRolloverMode(value) {
+  return ROLLOVER_MODES.indexOf(value) >= 0 ? value : ROLLOVER_ASK;
+}
+
+/** Open tasks sitting on a dated day before today, oldest first. */
+function findOverdue(tasks, options) {
+  const today = options && isIsoDay(options.today) ? options.today : null;
+  if (!today) return [];
+  return (tasks || [])
+    .filter((t) => isOpen(t) && isOverdue(t.day, today))
+    .sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : (a.order || 0) - (b.order || 0)));
+}
+
+/** True when this task has already taken its one rollover push today. */
+function alreadyRolledToday(task, today) {
+  if (!task || !task.rolledAt) return false;
+  return String(task.rolledAt).slice(0, 10) === today;
+}
+
+/**
+ * Plan a rollover of overdue work onto today.
+ *
+ * @param {Array}  tasks
+ * @param {Object} options { today, now, ids?, countPush? }
+ *        `ids` limits the rollover to a subset; omitted means all overdue.
+ *        `countPush` defaults to true; false rolls without touching the counter.
+ */
+function planRollover(tasks, options) {
+  const opts = options || {};
+  const today = isIsoDay(opts.today) ? opts.today : null;
+  const now = typeof opts.now === "string" ? opts.now : new Date().toISOString();
+  const countPush = opts.countPush !== false;
+  const limit = Array.isArray(opts.ids) ? new Set(opts.ids.map(String)) : null;
+
+  const ops = [];
+  const log = [];
+  const alarms = [];
+  const moved = [];
+  if (!today) return { ops, log, alarms, moved };
+
+  const due = findOverdue(tasks, { today }).filter((t) => !limit || limit.has(t.id));
+  if (!due.length) return { ops, log, alarms, moved };
+
+  // Orders continue from whatever today already holds, and older work lands
+  // first, so the queue reads oldest-debt-first rather than shuffled.
+  let position = nextOrder(tasks, today);
+
+  due.forEach((task) => {
+    const chargeable = countPush && !alreadyRolledToday(task, today);
+    const pushes = coerceCount(task.pushes) + (chargeable ? 1 : 0);
+    const fields = { day: today, order: position, pushes };
+    if (chargeable) fields.rolledAt = now;
+    position += 1;
+    ops.push({ kind: "patch", id: task.id, fields });
+    moved.push({ id: task.id, title: task.title, from: task.day, pushes, charged: chargeable });
+    if (chargeable && pushes >= PUSH_ALARM) {
+      alarms.push({ id: task.id, title: task.title, pushes });
+    }
+  });
+
+  log.push(
+    `rolled ${due.length} overdue task${due.length === 1 ? "" : "s"} to today` +
+      (countPush ? "" : " without counting pushes")
+  );
+  return { ops, log, alarms, moved };
+}
+
+/** Status-line copy for the overdue banner. */
+function describeOverdue(due) {
+  if (!due || !due.length) return "";
+  const oldest = due[0];
+  const n = due.length;
+  return `${n} task${n === 1 ? "" : "s"} still open from ${
+    n === 1 ? oldest.day : `as far back as ${oldest.day}`
+  }.`;
+}
+
+// ────────────────────────────────────────────────────────────────────
+// src/core/prompt.js
+// ────────────────────────────────────────────────────────────────────
+
+/**
+ * Assembling the turn.
+ *
+ * The model is memoryless between calls, so every turn ships the whole world:
+ * the rules, today's date, the goals, the learned habits, every open task with
+ * its id, and a slice of recent history. This looks wasteful and is the right
+ * shape — the store stays the single source of truth, and there is no drift
+ * between what the model believes the queue is and what it is.
+ *
+ * It lives in its own module because a prompt is program logic. Buried in a
+ * template literal inside an event handler, a behavioural rule cannot be tested,
+ * diffed meaningfully, or reviewed without reading the UI. Here, the contract it
+ * promises the parser is asserted in the test suite alongside everything else.
+ */
+
+const PROMPT_BUDGET = 64 * 1024;
+const HISTORY_LINES = 12;
+
+function taskLine(task) {
+  return [
+    `- id=${task.id}`,
+    `"${task.title}"`,
+    `day=${task.day}`,
+    `shape=${task.shape}`,
+    `size=${task.size}`,
+    `order=${task.order || 0}`,
+    `pushed=${task.pushes || 0}x`
+  ].join(" | ");
+}
+
+/**
+ * Build the full prompt for one user message.
+ *
+ * @param {Object} input { message, tasks, profile, log, today, name }
+ */
+function buildPrompt(input) {
+  const src = input || {};
+  const today = src.today;
+  const tomorrow = addDays(today, 1);
+  const name = typeof src.name === "string" && src.name.trim() ? src.name.trim() : "the user";
+  const tasks = Array.isArray(src.tasks) ? src.tasks : [];
+  const profile = src.profile && typeof src.profile === "object" ? src.profile : {};
+  const goals = Array.isArray(profile.goals) ? profile.goals : [];
+  const habits = Array.isArray(profile.habits) ? profile.habits : [];
+  const log = Array.isArray(src.log) ? src.log : [];
+
+  const open = tasks.filter(isOpen);
+  const overdue = findOverdue(tasks, { today });
+
+  const openLines = open.length ? open.map(taskLine).join("\n") : "(none)";
+  const overdueLines = overdue.length
+    ? overdue.map((t) => `- id=${t.id} | "${t.title}" | was due ${t.day}`).join("\n")
+    : "(none)";
+  const history = log.length
+    ? log
+        .slice(-HISTORY_LINES)
+        .map((entry) => `- ${String(entry.ts || "").slice(0, 10)}: ${entry.text || ""}`)
+        .join("\n")
+    : "(none)";
+  const chronic = open.filter((t) => (t.pushes || 0) >= PUSH_ALARM);
+
+  return [
+    `You are ${name}'s personal secretary. You run a task queue, not a calendar.`,
+    "",
+    "HARD RULES",
+    "- Never assign clock times. Days are fixed; hours are theirs to choose. You only ever change the ORDER of tasks within a day.",
+    "- If they say they are tired, hungry, low or busy, do not argue. Put something lighter next and move the heavy thing later in the day or to another day.",
+    `- Moving a task to a later day is a push. If a task has been pushed ${PUSH_ALARM} or more times, say so plainly and ask what is actually blocking it. Do not let it slide again in silence.`,
+    "- Work listed as OVERDUE has already had a day pass without being done. Deal with it explicitly: either move it onto a real day or ask whether it should be dropped. Never leave it unmentioned.",
+    "- Protect their goals from their moods, warmly. You are a secretary: not a cheerleader, not a nag.",
+    "- When you learn something durable about how they work (an energy rhythm, a preference, a pattern), record it with a habit action. Durable patterns only, never a one-off mood.",
+    "- Keep the reply to at most two sentences. Plain, warm, specific. No lists, no emoji.",
+    "",
+    `TODAY IS ${today}. Tomorrow is ${tomorrow}.`,
+    "",
+    "THEIR GOALS",
+    goals.length ? goals.map((g) => `- ${g}`).join("\n") : "(none recorded yet)",
+    "",
+    "WHAT YOU HAVE LEARNED ABOUT THEM",
+    habits.length ? habits.map((h) => `- ${h}`).join("\n") : "(nothing yet)",
+    "",
+    "OVERDUE — a day has already passed on these",
+    overdueLines,
+    "",
+    "ALL OPEN TASKS",
+    openLines,
+    "",
+    chronic.length
+      ? `CHRONICALLY AVOIDED (pushed ${PUSH_ALARM}+ times)\n` +
+        chronic.map((t) => `- id=${t.id} | "${t.title}" | pushed ${t.pushes}x`).join("\n")
+      : "CHRONICALLY AVOIDED\n(none)",
+    "",
+    "RECENT HISTORY",
+    history,
+    "",
+    "THEIR MESSAGE",
+    String(src.message === undefined || src.message === null ? "" : src.message),
+    "",
+    'Reply with ONLY a JSON object: {"reply":"...","actions":[...]}',
+    "Output raw JSON and nothing else: no prose before or after it, no markdown code fences.",
+    "Each action is exactly one of:",
+    '{"op":"add","title":"...","day":"YYYY-MM-DD or someday","shape":"deep|admin|errand|social","size":"S|M|L"}',
+    '{"op":"order","day":"YYYY-MM-DD","ids":["id","id"]}   (the full new order for that day)',
+    '{"op":"move","id":"...","day":"YYYY-MM-DD or someday"}',
+    '{"op":"done","id":"..."}',
+    '{"op":"drop","id":"..."}',
+    '{"op":"habit","text":"..."}',
+    '{"op":"goal","text":"..."}',
+    "Only use ids that appear above. An order action must list ids already on that day.",
+    "Use an empty actions array when nothing should change.",
+    `Example: {"reply":"Moved the write-up to tomorrow. The email thread is next, it is lighter.","actions":[{"op":"move","id":"a1","day":"${tomorrow}"},{"op":"order","day":"${today}","ids":["b2","c3"]}]}`
+  ].join("\n");
+}
+
+/**
+ * Whether a prompt will fit the host's per-call limit.
+ *
+ * Measured in UTF-8 bytes rather than characters, because the limit is a byte
+ * limit and a queue full of non-Latin titles would otherwise pass this check
+ * and fail the call.
+ */
+function promptFits(prompt, budget) {
+  const cap = Number.isFinite(budget) ? budget : PROMPT_BUDGET;
+  const bytes =
+    typeof TextEncoder === "function"
+      ? new TextEncoder().encode(prompt).length
+      : Buffer.byteLength(prompt, "utf8");
+  return { bytes, cap, fits: bytes <= cap };
+}
+
+/** Rough guidance when the prompt is too large to send. */
+function trimAdvice(tasks) {
+  const done = (Array.isArray(tasks) ? tasks : []).filter((t) => t && t.status === "done").length;
+  const someday = (Array.isArray(tasks) ? tasks : []).filter(
+    (t) => t && t.day === SOMEDAY && isOpen(t)
+  ).length;
+  if (done > 20) return `Clear some of the ${done} completed tasks and try again.`;
+  if (someday > 40) return `The Someday list has ${someday} items — prune it and try again.`;
+  return "Too much at once — clear some finished tasks first.";
+}
+
+// ────────────────────────────────────────────────────────────────────
+// src/core/settings.js
+// ────────────────────────────────────────────────────────────────────
+
+/**
+ * The few preferences that have to outlive a browser.
+ *
+ * Tier selection lives in `localStorage`, because it is a per-device
+ * convenience and losing it costs nothing. These do not: a home timezone and a
+ * rollover policy change what the agent computes, so they belong in the store
+ * next to the data they affect, and they have to follow the user across
+ * devices. A queue that rolls over on the laptop and not on the phone is worse
+ * than one that never rolls over at all.
+ */
+
+const DEFAULT_SETTINGS = {
+  timeZone: "",
+  rollover: ROLLOVER_ASK
+};
+
+/**
+ * Read settings out of a stored profile document.
+ *
+ * An empty `timeZone` means "follow this device", which is the right default:
+ * it is correct for the majority who never travel, and it is honest about the
+ * fact that nobody has told us otherwise. A stored zone the platform no longer
+ * recognises is discarded rather than kept, so an ICU update cannot strand the
+ * queue on a zone that resolves to nothing.
+ */
+function readSettings(raw) {
+  const src = raw && typeof raw === "object" ? raw : {};
+  const zone = typeof src.timeZone === "string" && isValidZone(src.timeZone) ? src.timeZone : "";
+  return {
+    timeZone: zone,
+    rollover: coerceRolloverMode(src.rollover)
+  };
+}
+
+/** The effective zone: the stored preference, else whatever the device says. */
+function effectiveZone(settings) {
+  const stored = settings && settings.timeZone;
+  if (typeof stored === "string" && stored && isValidZone(stored)) return stored;
+  return resolveZone();
+}
+
+function withSetting(settings, key, value) {
+  const next = Object.assign({}, readSettings(settings));
+  if (key === "timeZone") {
+    next.timeZone = typeof value === "string" && isValidZone(value) ? value : "";
+  } else if (key === "rollover") {
+    next.rollover = coerceRolloverMode(value);
+  }
+  return next;
+}
+
+/** A short list of zones to offer without asking anyone to type an IANA name. */
+function zoneChoices(current) {
+  const base = [
+    "America/Los_Angeles",
+    "America/Denver",
+    "America/Chicago",
+    "America/New_York",
+    "Europe/London",
+    "Europe/Berlin",
+    "Asia/Kolkata",
+    "Asia/Singapore",
+    "Asia/Tokyo",
+    "Australia/Sydney"
+  ].filter(isValidZone);
+  const device = resolveZone();
+  const out = [];
+  if (device && base.indexOf(device) < 0) out.push(device);
+  if (current && current !== device && base.indexOf(current) < 0 && isValidZone(current)) {
+    out.push(current);
+  }
+  return out.concat(base);
+}
+
+  /* ---------------------------------------------------------------- state */
+
+  var SETTINGS = readSettings(null);
+  var ZONE = effectiveZone(SETTINGS);
+  var TODAY = todayIn(ZONE);
+
+  var TASKS = [];
+  var PROFILE = { goals: [], habits: [] };
+  var LOG = [];
+  var HISTORY = createHistory();
+  var MAKE_ID = defaultIdFactory();
+
+  var db = null, ask = null;
+  var isExample = true, busy = false, ctl = null, editingId = null;
+  var rolloverOffered = "";
+
+  // The example day. Rendered synchronously so the first paint is a working
+  // interface rather than a spinner, and replaced the moment real data arrives.
+  function exampleTasks(){
+    return [
+      { id:"x1", title:"Finish the retrieval eval write-up", day:addDays(TODAY,-2), shape:"deep",   size:"L", order:0, status:"open", pushes:2 },
+      { id:"x2", title:"Reply to the Work4Flow thread",      day:TODAY,             shape:"admin",  size:"S", order:0, status:"open", pushes:0 },
+      { id:"x3", title:"Groceries + pick up the package",    day:TODAY,             shape:"errand", size:"M", order:1, status:"open", pushes:0 },
+      { id:"x4", title:"Call Ananya back",                   day:addDays(TODAY,1),  shape:"social", size:"S", order:0, status:"open", pushes:0 },
+      { id:"x5", title:"Read the ranking paper",             day:SOMEDAY,           shape:"deep",   size:"M", order:0, status:"open", pushes:0 }
+    ].map(function(t){ return normalizeTask(t, { today: TODAY }); });
+  }
+
+  var ALLOWED_TIERS = ["quick","default"];
+  var TIER_LABEL = { quick:"quick", default:"standard", complex:"complex" };
+  var tier = "default";
+  try {
+    var savedTier = localStorage.getItem("oop.tier");
+    if (ALLOWED_TIERS.indexOf(savedTier) >= 0) tier = savedTier;
+  } catch (e) {}
+  function safeTier(){ return ALLOWED_TIERS.indexOf(tier) >= 0 ? tier : "default"; }
+
+  var el = {
+    board:   document.getElementById("board"),
+    banner:  document.getElementById("banner"),
+    notice:  document.getElementById("notice"),
+    say:     document.getElementById("say"),
+    sayText: document.getElementById("saytext"),
+    aside:   document.getElementById("asidetext"),
+    msg:     document.getElementById("msg"),
+    send:    document.getElementById("send"),
+    stop:    document.getElementById("stop"),
+    goals:   document.getElementById("goals"),
+    habits:  document.getElementById("habits"),
+    applied: document.getElementById("applied"),
+    undo:    document.getElementById("undo"),
+    redo:    document.getElementById("redo"),
+    exportB: document.getElementById("export"),
+    importB: document.getElementById("import"),
+    file:    document.getElementById("file"),
+    zone:    document.getElementById("zone"),
+    roll:    document.getElementById("roll")
+  };
+
+  function esc(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c];
+    });
+  }
+
+  function say(text, kind, aside){
+    el.sayText.textContent = text;
+    el.say.className = "say" + (kind ? " " + kind : "");
+    el.aside.textContent = aside || "";
+  }
+
+  function showNotice(text){
+    el.notice.hidden = !text;
+    el.notice.textContent = text || "";
+  }
+
+  function currentState(){
+    return { tasks: TASKS, profile: PROFILE };
+  }
+
+  /* -------------------------------------------------------------- writing */
+
+  // One write at a time per document: the store is last-writer-wins with no
+  // transactions, so a batch is drained sequentially rather than in parallel.
+  function runSeq(jobs){
+    return jobs.reduce(function(p, j){ return p.then(j); }, Promise.resolve());
+  }
+
+  function localApply(op){
+    if (op.kind === "create") {
+      if (!findTask(TASKS, op.id)) TASKS = TASKS.concat([op.task]);
+      return;
+    }
+    if (op.kind === "patch") {
+      TASKS = TASKS.map(function(t){
+        return t.id === op.id ? normalizeTask(Object.assign({}, t, op.fields), { today: TODAY }) : t;
+      });
+      return;
+    }
+    if (op.kind === "delete") {
+      TASKS = TASKS.filter(function(t){ return t.id !== op.id; });
+      return;
+    }
+    if (op.kind === "profile") {
+      PROFILE = { goals: op.profile.goals.slice(), habits: op.profile.habits.slice() };
+    }
+  }
+
+  // Every write in the app funnels through here — agent plans, manual edits,
+  // rollover and undo alike. One code path that writes means one place where
+  // ordering and failure handling have to be right.
+  function execute(ops){
+    if (!ops || !ops.length) return Promise.resolve();
+    var jobs = ops.map(function(op){
+      return function(){
+        localApply(op);
+        if (!db) return Promise.resolve();
+        if (op.kind === "create") return db.doc("tasks/" + op.id).set(toDocument(op.task)).catch(noop);
+        if (op.kind === "patch")  return db.doc("tasks/" + op.id).update(op.fields).catch(noop);
+        if (op.kind === "delete") return db.doc("tasks/" + op.id).delete().catch(noop);
+        if (op.kind === "profile") {
+          return db.doc("profile/main").set({
+            goals: op.profile.goals,
+            habits: op.profile.habits,
+            timeZone: SETTINGS.timeZone,
+            rollover: SETTINGS.rollover
+          }).catch(noop);
+        }
+        return Promise.resolve();
+      };
+    });
+    return runSeq(jobs).then(function(){ render(); });
+  }
+
+  function noop(){}
+
+  function appendLog(lines){
+    if (!lines || !lines.length) return Promise.resolve();
+    var stamp = new Date().toISOString();
+    lines.forEach(function(text){ LOG.push({ ts: stamp, text: text }); });
+    if (LOG.length > 100) LOG = LOG.slice(-100);
+    if (!db) return Promise.resolve();
+    return db.doc("meta/log").set({ entries: LOG }).catch(noop);
+  }
+
+  function saveSettings(){
+    if (!db) return Promise.resolve();
+    return db.doc("profile/main").set({
+      goals: PROFILE.goals,
+      habits: PROFILE.habits,
+      timeZone: SETTINGS.timeZone,
+      rollover: SETTINGS.rollover
+    }).catch(noop);
+  }
+
+  /** Record the pre-change state, then apply. This is what makes undo possible. */
+  function commit(label, ops, logLines){
+    if (!ops || !ops.length) return Promise.resolve();
+    HISTORY.record(currentState(), label);
+    return execute(ops).then(function(){ return appendLog(logLines); }).then(render);
+  }
+
+  /* ------------------------------------------------------------- rollover */
+
+  function overdueNow(){
+    return findOverdue(TASKS, { today: TODAY });
+  }
+
+  function doRollover(){
+    var plan = planRollover(TASKS, { today: TODAY, now: new Date().toISOString() });
+    if (!plan.ops.length) return Promise.resolve();
+    showNotice("");
+    return commit("rollover", plan.ops, plan.log).then(function(){
+      var n = plan.moved.length;
+      var charged = plan.moved.filter(function(m){ return m.charged; }).length;
+      say(
+        "Moved " + n + " overdue task" + (n === 1 ? "" : "s") + " to today.",
+        "live",
+        charged ? charged + " push" + (charged === 1 ? "" : "es") + " recorded" : "no pushes recorded"
+      );
+      if (plan.alarms.length) {
+        showNotice(
+          plan.alarms.map(function(a){
+            return '"' + a.title + '" has now slipped ' + a.pushes + " times.";
+          }).join(" ")
+        );
+      }
+    });
+  }
+
+  // Offered once per day, never on a loop, and never without saying what it costs.
+  function considerRollover(){
+    var due = overdueNow();
+    if (!due.length) { if (!isExample) showNotice(""); return; }
+    if (SETTINGS.rollover === ROLLOVER_OFF) { showNotice(""); return; }
+    if (SETTINGS.rollover === ROLLOVER_AUTO && !isExample) {
+      if (rolloverOffered === TODAY + ":auto") return;
+      rolloverOffered = TODAY + ":auto";
+      doRollover();
+      return;
+    }
+    showNotice(describeOverdue(due) + " Roll it to today from the Overdue section above.");
+  }
+
+  /* --------------------------------------------------------------- render */
+
+  function taskRow(task, index, reorderable, kind){
+    if (task.id === editingId) return editorRow(task);
+    var shapeClass = SHAPES.indexOf(task.shape) >= 0 ? task.shape : "admin";
+    var cls = "task " + shapeClass + (task.status === "done" ? " done" : "");
+    var bits = "";
+    if (task.pushes > 0) {
+      bits += '<span class="push' + (task.pushes >= PUSH_ALARM ? " loud" : "") + '">pushed ' +
+              task.pushes + "×</span>";
+    }
+    if (kind === GROUP_OVERDUE) {
+      var late = daysBetween(task.day, TODAY);
+      bits += '<span class="late">' + (late === 1 ? "1 day late" : late + " days late") + "</span>";
+    } else if (kind === GROUP_LATER) {
+      bits += '<span class="size">' + esc(prettyDay(task.day)) + "</span>";
+    }
+
+    var acts = "";
+    if (reorderable && task.status !== "done") {
+      acts += '<button class="ib" data-act="up" type="button" aria-label="Move up">↑</button>' +
+              '<button class="ib" data-act="down" type="button" aria-label="Move down">↓</button>';
+    }
+    if (task.status !== "done") {
+      acts += '<button class="ib" data-act="edit" type="button" aria-label="Edit task">✎</button>';
+    }
+    acts += '<button class="ib tick" data-act="done" type="button" aria-label="' +
+            (task.status === "done" ? "Reopen" : "Mark done") + '">' +
+            (task.status === "done" ? "↺" : "✓") + "</button>";
+
+    return '<li class="' + cls + '" data-id="' + esc(task.id) + '">' +
+      '<span class="idx">' + (task.status === "done" ? "✓" : index + 1) + "</span>" +
+      '<div><p class="ttl">' + esc(task.title) + '</p><div class="meta">' +
+        '<span class="chip">' + esc(SHAPE_LABEL[task.shape] || task.shape) + "</span>" +
+        '<span class="size">' + esc(task.size) + "</span>" + bits +
+      "</div></div>" +
+      '<div class="acts">' + acts + "</div></li>";
+  }
+
+  // Editing a task by hand should not cost a model call. A rename, a reshape or
+  // a corrected day are the most common changes there are, and routing them
+  // through the agent was slower, less predictable and burned usage budget.
+  function editorRow(task){
+    var shapeOpts = SHAPES.map(function(s){
+      return '<option value="' + s + '"' + (s === task.shape ? " selected" : "") + ">" +
+             esc(SHAPE_LABEL[s]) + "</option>";
+    }).join("");
+    var sizeOpts = SIZES.map(function(s){
+      return '<option value="' + s + '"' + (s === task.size ? " selected" : "") + ">" +
+             esc(SIZE_LABEL[s]) + "</option>";
+    }).join("");
+    var dated = task.day !== SOMEDAY;
+    return '<li class="task editing ' + esc(task.shape) + '" data-id="' + esc(task.id) + '">' +
+      '<div class="editor">' +
+        '<input type="text" id="e-title" value="' + esc(task.title) +
+          '" maxlength="' + TITLE_MAX + '" aria-label="Task title">' +
+        '<div class="editrow">' +
+          '<select id="e-shape" aria-label="Shape">' + shapeOpts + "</select>" +
+          '<select id="e-size" aria-label="Size">' + sizeOpts + "</select>" +
+          '<input type="date" id="e-day" value="' + (dated ? esc(task.day) : "") + '" aria-label="Day">' +
+          '<button class="mini" data-act="someday" type="button">' +
+            (dated ? "Someday" : "✓ Someday") + "</button>" +
+        "</div>" +
+        '<div class="editrow">' +
+          '<button class="mini go" data-act="save" type="button">Save</button>' +
+          '<button class="mini" data-act="cancel" type="button">Cancel</button>' +
+          '<span class="grow"></span>' +
+          '<button class="mini bad" data-act="delete" type="button">Delete</button>' +
+        "</div>" +
+      "</div></li>";
+  }
+
+  function render(){
+    var groups = groupTasks(TASKS, { today: TODAY });
+    var html = "";
+
+    groups.forEach(function(group){
+      // Empty sections stay out of the way, except Today, which is the page.
+      if (!group.items.length && group.kind !== GROUP_TODAY) return;
+      var reorderable = isReorderable(group.kind);
+      var right = group.kind === GROUP_TODAY || group.kind === GROUP_TOMORROW
+        ? esc(prettyDay(group.day))
+        : group.openCount + " open";
+
+      html += '<section class="day' + (group.kind === GROUP_OVERDUE ? " overdue" : "") + '">' +
+        '<div class="dayhead"><h2 class="dayname">' + esc(group.name) + "</h2>" +
+        '<span class="daydate">' + right + "</span>" +
+        (group.kind === GROUP_OVERDUE
+          ? '<span class="headact"><button class="inline" id="rollall" type="button">Roll all to today</button></span>'
+          : "") +
+        "</div>";
+      html += group.items.length
+        ? '<ul class="queue">' + group.items.map(function(task, i){
+            return taskRow(task, i, reorderable, group.kind);
+          }).join("") + "</ul>"
+        : '<p class="empty">Nothing queued. Tell your secretary what’s coming.</p>';
+      html += "</section>";
+    });
+
+    el.board.innerHTML = html;
+
+    function list(target, values, fallback){
+      target.innerHTML = values.length
+        ? "<ul>" + values.map(function(s){ return "<li>" + esc(s) + "</li>"; }).join("") + "</ul>"
+        : '<p class="none">' + fallback + "</p>";
+    }
+    list(el.goals, PROFILE.goals, "None yet — tell it what you’re working toward.");
+    list(el.habits, PROFILE.habits, "Nothing yet. It learns from what you actually do.");
+
+    el.banner.hidden = !isExample;
+    if (isExample) {
+      el.banner.textContent =
+        "This is an example day so you can see the shape of it. Send your first real task below and it replaces everything here.";
+    }
+
+    el.undo.disabled = !HISTORY.canUndo;
+    el.redo.disabled = !HISTORY.canRedo;
+    el.undo.title = HISTORY.canUndo ? "Undo " + HISTORY.undoLabel : "Nothing to undo";
+    el.redo.title = HISTORY.canRedo ? "Redo " + HISTORY.redoLabel : "Nothing to redo";
+
+    if (editingId) {
+      var field = document.getElementById("e-title");
+      if (field) field.focus();
+    }
+  }
+
+  /* -------------------------------------------------------- manual controls */
+
+  function nudge(task, direction){
+    var siblings = sortByOrder(tasksForDay(openTasks(TASKS), task.day));
+    var from = siblings.indexOf(siblings.filter(function(t){ return t.id === task.id; })[0]);
+    var to = direction === "up" ? from - 1 : from + 1;
+    if (from < 0 || to < 0 || to >= siblings.length) return;
+    var other = siblings[to];
+    commit("nudge", [
+      { kind:"patch", id:task.id,  fields:{ order: to } },
+      { kind:"patch", id:other.id, fields:{ order: from } }
+    ], []);
+  }
+
+  function toggleDone(task){
+    var nowDone = task.status !== "done";
+    commit(
+      nowDone ? "complete" : "reopen",
+      [{ kind:"patch", id:task.id, fields:{
+        status: nowDone ? "done" : "open",
+        doneAt: nowDone ? new Date().toISOString() : null
+      } }],
+      [(nowDone ? 'completed "' : 'reopened "') + task.title + '"']
+    );
+  }
+
+  function saveEdit(task){
+    var titleEl = document.getElementById("e-title");
+    var shapeEl = document.getElementById("e-shape");
+    var sizeEl = document.getElementById("e-size");
+    var dayEl = document.getElementById("e-day");
+    if (!titleEl) return;
+
+    var wantDay = dayEl && dayEl.value ? dayEl.value : SOMEDAY;
+    var plan = planEdit(task, {
+      title: titleEl.value,
+      shape: shapeEl ? shapeEl.value : task.shape,
+      size:  sizeEl ? sizeEl.value : task.size,
+      day:   wantDay
+    });
+
+    if (plan.rejected.length) {
+      say("That edit had a problem: " + plan.rejected.map(function(r){
+        return r.field + " " + r.reason;
+      }).join(", ") + ".", "err");
+      return;
+    }
+    editingId = null;
+    if (!Object.keys(plan.fields).length) { render(); return; }
+
+    // A manual day change is a deferral like any other, and is counted like one.
+    var lines = ['edited "' + task.title + '"'];
+    if (plan.fields.day && isAfter(plan.fields.day, task.day)) {
+      plan.fields.pushes = task.pushes + 1;
+      plan.fields.order = nextOrder(TASKS, plan.fields.day);
+      lines = ['moved "' + task.title + '" to ' + plan.fields.day + " (push " + plan.fields.pushes + ")"];
+    } else if (plan.fields.day) {
+      plan.fields.order = nextOrder(TASKS, plan.fields.day);
+    }
+    commit("edit", [{ kind:"patch", id:task.id, fields: plan.fields }], lines);
+  }
+
+  el.board.addEventListener("click", function(event){
+    var button = event.target.closest("button[data-act], #rollall");
+    if (!button) return;
+    if (button.id === "rollall") { doRollover(); return; }
+
+    var row = button.closest("li.task");
+    if (!row) return;
+    var task = findTask(TASKS, row.getAttribute("data-id"));
+    if (!task) return;
+    var act = button.getAttribute("data-act");
+
+    if (act === "up" || act === "down") { nudge(task, act); return; }
+    if (act === "done") { toggleDone(task); return; }
+    if (act === "edit") { editingId = task.id; render(); return; }
+    if (act === "cancel") { editingId = null; render(); return; }
+    if (act === "save") { saveEdit(task); return; }
+    if (act === "someday") {
+      var dayEl = document.getElementById("e-day");
+      if (dayEl) dayEl.value = dayEl.value ? "" : TODAY;
+      button.textContent = dayEl && dayEl.value ? "Someday" : "✓ Someday";
+      return;
+    }
+    if (act === "delete") {
+      editingId = null;
+      commit("delete", [{ kind:"delete", id:task.id }], ['dropped "' + task.title + '"']);
+    }
+  });
+
+  el.board.addEventListener("keydown", function(event){
+    if (!editingId) return;
+    var task = findTask(TASKS, editingId);
+    if (!task) return;
+    if (event.key === "Enter" && event.target.id === "e-title") {
+      event.preventDefault();
+      saveEdit(task);
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      editingId = null;
+      render();
+    }
+  });
+
+  /* ------------------------------------------------------------ undo/redo */
+
+  function applyHistory(step){
+    if (!step) return;
+    var target = step.state;
+    execute(step.ops).then(function(){
+      TASKS = target.tasks.map(function(t){ return normalizeTask(t, { today: TODAY }); });
+      PROFILE = { goals: target.profile.goals.slice(), habits: target.profile.habits.slice() };
+      render();
+    });
+  }
+
+  el.undo.addEventListener("click", function(){
+    var step = HISTORY.undo(currentState());
+    if (!step) return;
+    applyHistory(step);
+    say("Undid the " + step.label + ".", "live");
+  });
+
+  el.redo.addEventListener("click", function(){
+    var step = HISTORY.redo(currentState());
+    if (!step) return;
+    applyHistory(step);
+    say("Redid the " + step.label + ".", "live");
+  });
+
+  document.addEventListener("keydown", function(event){
+    if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "z") return;
+    var inField = /^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName);
+    if (inField) return;
+    event.preventDefault();
+    if (event.shiftKey) el.redo.click();
+    else el.undo.click();
+  });
+
+  /* ------------------------------------------------------- export / import */
+
+  el.exportB.addEventListener("click", function(){
+    var now = new Date().toISOString();
+    var payload = buildBackup(
+      { tasks: TASKS, profile: PROFILE, log: LOG },
+      { now: now, timeZone: SETTINGS.timeZone }
+    );
+    var text = JSON.stringify(payload, null, 2);
+    try {
+      var blob = new Blob([text], { type: "application/json" });
+      var url = URL.createObjectURL(blob);
+      var link = document.createElement("a");
+      link.href = url;
+      link.download = backupFilename(now);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+      say("Exported " + payload.counts.tasks + " tasks.", "live", payload.counts.open + " still open");
+    } catch (err) {
+      say("This browser wouldn't let me save the file.", "err");
+    }
+  });
+
+  el.importB.addEventListener("click", function(){ el.file.click(); });
+
+  el.file.addEventListener("change", function(){
+    var file = el.file.files && el.file.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(){
+      el.file.value = "";
+      var read = readBackup(String(reader.result || ""), { today: TODAY });
+      if (!read.ok) { say(read.error, "err"); return; }
+
+      var count = read.data.tasks.length;
+      var replacing = TASKS.length && !isExample;
+      var mode = IMPORT_REPLACE;
+      if (replacing) {
+        // Destructive by default, so it asks. "Cancel" is the safe branch and
+        // merges instead of doing nothing, because the user did pick a file.
+        var wipe = window.confirm(
+          "Import " + count + " tasks, replacing the " + TASKS.length + " you have now?\n\n" +
+          "OK replaces everything. Cancel merges the file into what is already here."
+        );
+        mode = wipe ? IMPORT_REPLACE : IMPORT_MERGE;
+      }
+
+      var plan = planImport(
+        { tasks: isExample ? [] : TASKS, profile: PROFILE },
+        read.data,
+        { mode: mode, makeId: MAKE_ID }
+      );
+      if (plan.error) { say(plan.error, "err"); return; }
+
+      if (isExample) { TASKS = []; isExample = false; }
+      commit("import", plan.ops, ["imported " + plan.added + " tasks (" + mode + ")"]).then(function(){
+        say(
+          mode === IMPORT_REPLACE
+            ? "Replaced the queue with " + plan.added + " imported tasks."
+            : "Merged in " + plan.added + " tasks.",
+          "live",
+          read.notes.length ? read.notes.length + " row(s) needed repair" : ""
+        );
+        if (read.notes.length) showNotice(read.notes.join(" "));
+        considerRollover();
+      });
+    };
+    reader.onerror = function(){ say("That file couldn't be read.", "err"); };
+    reader.readAsText(file);
+  });
+
+  /* ------------------------------------------------------------- settings */
+
+  function paintSettings(){
+    var zones = zoneChoices(SETTINGS.timeZone);
+    el.zone.innerHTML =
+      '<option value="">Follow this device</option>' +
+      zones.map(function(z){
+        return '<option value="' + esc(z) + '"' + (z === SETTINGS.timeZone ? " selected" : "") + ">" +
+               esc(z.replace(/_/g, " ")) + "</option>";
+      }).join("");
+    el.roll.value = SETTINGS.rollover;
+  }
+
+  el.zone.addEventListener("change", function(){
+    SETTINGS = withSetting(SETTINGS, "timeZone", el.zone.value);
+    ZONE = effectiveZone(SETTINGS);
+    var wasToday = TODAY;
+    TODAY = todayIn(ZONE);
+    paintSettings();
+    saveSettings();
+    render();
+    if (TODAY !== wasToday) {
+      say("Home zone set. Today is now " + TODAY + ".", "live", "was " + wasToday);
+    } else {
+      say("Home zone set to " + (SETTINGS.timeZone || "this device") + ".", "live");
+    }
+    rolloverOffered = "";
+    considerRollover();
+  });
+
+  el.roll.addEventListener("change", function(){
+    SETTINGS = withSetting(SETTINGS, "rollover", el.roll.value);
+    paintSettings();
+    saveSettings();
+    rolloverOffered = "";
+    considerRollover();
+    say("Overdue handling set to “" + el.roll.options[el.roll.selectedIndex].text + "”.", "live");
+  });
+
+  /* ------------------------------------------------------------ the agent */
+
+  function send(){
+    var text = el.msg.value.trim();
+    if (!text || busy) return;
+    if (!ask) {
+      say("Claude isn't reachable from this page, so I can only hold the list right now.", "err");
+      return;
+    }
+
+    var prompt = buildPrompt({
+      message: text,
+      tasks: TASKS,
+      profile: PROFILE,
+      log: LOG,
+      today: TODAY,
+      name: "Pranjal"
+    });
+    var fit = promptFits(prompt);
+    if (!fit.fits) {
+      say(trimAdvice(TASKS), "err", fit.bytes + " bytes, limit " + fit.cap);
+      return;
+    }
+
+    busy = true;
+    el.send.disabled = true;
+    el.stop.hidden = false;
+    el.msg.value = "";
+    el.msg.style.height = "auto";
+    showNotice("");
+    say("Thinking…");
+    el.applied.textContent = "asked for " + TIER_LABEL[safeTier()] + "…";
+    ctl = new AbortController();
+
+    ask(prompt, { cache:false, modelTier:safeTier(), signal:ctl.signal })
+      .then(function(res){
+        var served = (res && res.modelTierApplied) || safeTier();
+        el.applied.textContent = "answered on " + (TIER_LABEL[served] || served) +
+          (served !== safeTier() ? " (substituted)" : "");
+
+        var reply = readAgentReply(res && res.text);
+        if (!reply.ok) { say("I garbled that one. Say it again?", "err", reply.error); return; }
+
+        var plan = planActions(reply.actions, currentState(), {
+          today: TODAY,
+          now: new Date().toISOString(),
+          makeId: MAKE_ID
+        });
+
+        if (isExample && plan.ops.length) {
+          // The first real instruction clears the illustration rather than
+          // mixing invented tasks into a real queue.
+          TASKS = [];
+          isExample = false;
+        }
+
+        // What was refused is said out loud. Dropping a bad instruction in
+        // silence leaves the user believing a plan was applied in full.
+        say(reply.reply, "live", describeRejections(plan.rejected) || reply.error);
+
+        return commit("reshuffle", plan.ops, plan.log).then(function(){
+          if (plan.alarms.length) {
+            showNotice(plan.alarms.map(function(a){
+              return '"' + a.title + '" has been pushed ' + a.pushes + " times now.";
+            }).join(" "));
+          }
+          considerRollover();
+        });
+      })
+      .catch(function(error){
+        var code = (error && error.code) || "upstream_error";
+        el.applied.textContent = "";
+        if (code === "cancelled") { say("Stopped."); return; }
+        say(errorCopy(code), "err");
+      })
+      .then(function(){
+        busy = false;
+        el.send.disabled = false;
+        el.stop.hidden = true;
+        ctl = null;
+      });
+  }
+
+  el.send.addEventListener("click", send);
+  el.stop.addEventListener("click", function(){ if (ctl) ctl.abort(); });
+  el.msg.addEventListener("keydown", function(event){
+    if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); send(); }
+  });
+  el.msg.addEventListener("input", function(){
+    el.msg.style.height = "auto";
+    el.msg.style.height = Math.min(el.msg.scrollHeight, 132) + "px";
+  });
+
+  var tierButtons = Array.prototype.slice.call(document.querySelectorAll("button.tier"));
+  function paintTiers(){
+    tierButtons.forEach(function(button){
+      button.setAttribute("aria-pressed", String(button.getAttribute("data-tier") === safeTier()));
+    });
+  }
+  tierButtons.forEach(function(button){
+    button.addEventListener("click", function(){
+      var want = button.getAttribute("data-tier");
+      if (ALLOWED_TIERS.indexOf(want) < 0) return;   // nothing else is reachable
+      tier = want;
+      try { localStorage.setItem("oop.tier", tier); } catch (e) {}
+      paintTiers();
+      el.applied.textContent = TIER_LABEL[tier] + " for the next message";
+    });
+  });
+
+  /* ----------------------------------------------------------------- boot */
+
+  TASKS = exampleTasks();
+  paintTiers();
+  paintSettings();
+  render();
+
+  if (window.claude && typeof window.claude.use === "function") {
+    window.claude.use("sample").then(function(sample){ ask = sample; }).catch(noop);
+
+    window.claude.use("db").then(function(store){
+      if (!store) return;
+      db = store;
+
+      // Subscriptions are registered once, at boot, never from render code:
+      // subscribing inside a render path re-subscribes on every snapshot.
+      db.collection("tasks").onSnapshot(function(snap){
+        var rows = snap.docs.map(function(doc){
+          return normalizeTask(Object.assign({ id: doc.id }, doc.data() || {}), { today: TODAY });
+        });
+        if (rows.length) { TASKS = rows; isExample = false; }
+        else if (!isExample) { TASKS = []; }
+        render();
+        considerRollover();
+      }, noop);
+
+      db.doc("profile/main").onSnapshot(function(snap){
+        var data = snap.exists ? (snap.data() || {}) : {};
+        PROFILE = {
+          goals: Array.isArray(data.goals) ? data.goals : [],
+          habits: Array.isArray(data.habits) ? data.habits : []
+        };
+        var incoming = readSettings(data);
+        var zoneChanged = incoming.timeZone !== SETTINGS.timeZone;
+        SETTINGS = incoming;
+        if (zoneChanged) {
+          ZONE = effectiveZone(SETTINGS);
+          TODAY = todayIn(ZONE);
+        }
+        paintSettings();
+        render();
+        considerRollover();
+      }, noop);
+
+      db.doc("meta/log").get().then(function(snap){
+        var data = snap.exists ? (snap.data() || {}) : {};
+        if (Array.isArray(data.entries)) LOG = data.entries;
+      }).catch(noop);
+    }).catch(noop);
+  }
+})();
+</script>

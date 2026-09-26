@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ["20", "22"]
+    name: node ${{ matrix.node }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      # There is nothing to install: the suite runs on node:test and the build
+      # uses only node builtins. Keeping it that way is a deliberate property,
+      # so it is asserted rather than assumed.
+      - name: No third-party dependencies
+        run: |
+          test ! -f package-lock.json || { echo "unexpected lockfile"; exit 1; }
+          node -e '
+            const pkg = require("./package.json");
+            const counts = Object.keys(pkg.dependencies || {}).length
+                         + Object.keys(pkg.devDependencies || {}).length;
+            if (counts) { console.error("dependencies crept in"); process.exit(1); }
+          '
+
+      - name: dist/ is in sync with src/
+        run: node build.mjs --check
+
+      - name: Tests
+        run: node --test "test/*.test.js"

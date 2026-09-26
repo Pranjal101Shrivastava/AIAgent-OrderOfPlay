@@ -1,0 +1,19 @@
+{
+  "name": "order-of-play",
+  "version": "1.1.0",
+  "private": true,
+  "description": "A personal-secretary agent that schedules your day as an ordered queue instead of a calendar.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "check": "node build.mjs --check",
+    "test": "node --test \"test/*.test.js\"",
+    "verify": "npm run check && npm test"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}
