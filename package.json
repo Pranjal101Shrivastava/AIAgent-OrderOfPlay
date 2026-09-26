@@ -11,7 +11,7 @@
   "scripts": {
     "build": "node build.mjs",
     "check": "node build.mjs --check",
-    "test": "node --test \"test/*.test.js\"",
+    "test": "node --test test/*.test.js",
     "verify": "npm run check && npm test"
   },
   "dependencies": {},

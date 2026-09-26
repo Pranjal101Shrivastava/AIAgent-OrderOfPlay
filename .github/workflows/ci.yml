@@ -37,5 +37,8 @@ jobs:
       - name: dist/ is in sync with src/
         run: node build.mjs --check
 
+      # Unquoted on purpose: the shell expands the glob. Node 20's test runner
+      # cannot expand glob patterns itself (that arrived in Node 22), so a
+      # quoted pattern is passed through literally and matches nothing.
       - name: Tests
-        run: node --test "test/*.test.js"
+        run: node --test test/*.test.js
