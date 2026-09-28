@@ -579,8 +579,8 @@
       .then(function(snap){
         var data = snap && snap.exists ? (snap.data() || {}) : {};
         PROFILE = {
-          goals: Array.isArray(data.goals) ? data.goals : [],
-          habits: Array.isArray(data.habits) ? data.habits : []
+          goals: Array.isArray(data.goals) ? data.goals.slice() : [],
+          habits: Array.isArray(data.habits) ? data.habits.slice() : []
         };
         render();
       })
@@ -1232,14 +1232,25 @@
         });
       })
       .catch(function(error){
-        // The raw code goes on screen beside the copy. Without it, an unmapped
-        // or newly-introduced code is indistinguishable from any other failure,
-        // and the user has nothing to report. Copy explains; the code
-        // identifies.
-        var code = (error && error.code) || "upstream_error";
         el.applied.textContent = "";
-        if (code === "cancelled") { say("Stopped."); return; }
-        say(errorCopy(code), "err", code);
+
+        // This catch covers the whole chain, not just the sampling call: the
+        // parse, the plan, the writes and the re-render all run inside it. A
+        // rejection from the capability carries a string `code`; a thrown
+        // JavaScript error does not. Defaulting the latter to "upstream_error"
+        // blamed the service for this page's own crash, which is precisely the
+        // bug that cost days of looking in the wrong place.
+        var isSampling = error && typeof error.code === "string";
+        if (isSampling && error.code === "cancelled") { say("Stopped."); return; }
+
+        if (isSampling) {
+          say(errorCopy(error.code), "err", error.code);
+        } else {
+          var detail = (error && (error.message || error.name)) || String(error);
+          say("Something in this page broke while handling the reply. Your queue is unchanged from what was saved.",
+              "err", "page error: " + detail);
+          if (typeof console !== "undefined" && console.error) console.error("order-of-play:", error);
+        }
 
         // Put the message back. The composer is cleared optimistically when the
         // send starts, which is right when it succeeds and cruel when it does
@@ -1429,8 +1440,8 @@
       db.doc("profile/main").onSnapshot(function(snap){
         var data = snap.exists ? (snap.data() || {}) : {};
         PROFILE = {
-          goals: Array.isArray(data.goals) ? data.goals : [],
-          habits: Array.isArray(data.habits) ? data.habits : []
+          goals: Array.isArray(data.goals) ? data.goals.slice() : [],
+          habits: Array.isArray(data.habits) ? data.habits.slice() : []
         };
         var incoming = readSettings(data);
         var zoneChanged = incoming.timeZone !== SETTINGS.timeZone;
@@ -1446,7 +1457,11 @@
 
       db.doc("meta/log").get().then(function(snap){
         var data = snap.exists ? (snap.data() || {}) : {};
-        if (Array.isArray(data.entries)) LOG = data.entries;
+        // .slice() is load-bearing, not tidiness. Delivered snapshots and their
+        // data() are frozen, so aliasing this array and later pushing to it
+        // throws a TypeError under "use strict" — which landed in the sampling
+        // catch below and was reported, for days, as upstream_error.
+        if (Array.isArray(data.entries)) LOG = data.entries.slice();
       }).catch(noop);
     }).catch(noop);
   }

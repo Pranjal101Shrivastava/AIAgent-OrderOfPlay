@@ -12,6 +12,35 @@ const DIST = path.join(ROOT, "dist", "order-of-play.html");
 
 const dist = await readFile(DIST, "utf8");
 
+/** Remove // line comments and block comments, leaving string literals alone. */
+function stripComments(src) {
+  let out = "";
+  let i = 0;
+  let quote = null;
+  while (i < src.length) {
+    const c = src[i];
+    const next = src[i + 1];
+    if (quote) {
+      out += c;
+      if (c === "\\") { out += next ?? ""; i += 2; continue; }
+      if (c === quote) quote = null;
+      i += 1;
+      continue;
+    }
+    if (c === '"' || c === "'" || c === "`") { quote = c; out += c; i += 1; continue; }
+    if (c === "/" && next === "/") { while (i < src.length && src[i] !== "\n") i += 1; continue; }
+    if (c === "/" && next === "*") {
+      i += 2;
+      while (i < src.length && !(src[i] === "*" && src[i + 1] === "/")) i += 1;
+      i += 2;
+      continue;
+    }
+    out += c;
+    i += 1;
+  }
+  return out;
+}
+
 function inlineScript(html) {
   const start = html.lastIndexOf("<script>");
   const end = html.lastIndexOf("</script>");
@@ -70,12 +99,18 @@ test("every core function the shell calls actually exists", async () => {
   }
   assert.ok(exported.size > 40, "the core exports a real surface");
 
-  const body = shell.slice(shell.indexOf("/*__CORE__*/"));
+  // Comments are prose, not code: a function name mentioned in one is not a
+  // call. Strip them before looking for identifiers, or documenting a bug
+  // fails the build.
+  const body = stripComments(shell.slice(shell.indexOf("/*__CORE__*/")));
 
   // Everything the shell declares for itself, at any nesting depth. Declaration
   // lists ("var db = null, ask = null;") bind every name in the list, not just
   // the first, so the whole statement is split rather than regexed per name.
+  // The first name is also captured directly, because a statement whose
+  // initializer contains braces ("var data = x ? {} : {};") defeats the split.
   const local = new Set();
+  for (const m of body.matchAll(/\b(?:var|let|const)\s+([A-Za-z_$][\w$]*)/g)) local.add(m[1]);
   for (const m of body.matchAll(/\bfunction\s+([A-Za-z_$][\w$]*)/g)) local.add(m[1]);
   for (const m of body.matchAll(/\b(?:var|let|const)\s+([^;{}]+?);/g)) {
     m[1].split(",").forEach((part) => {
