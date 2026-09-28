@@ -1627,6 +1627,53 @@ function errorCopy(code) {
   return "Something went wrong reaching Claude. Try again.";
 }
 
+/**
+ * Storage error codes, mapped to copy.
+ *
+ * These arrive from the document store rather than the sampling capability, but
+ * the rule is the same one: branch on a stable code, never on message text, and
+ * give an unknown code generic copy rather than leaking an internal string.
+ *
+ * This exists because the first version swallowed every storage failure. A
+ * write that failed left the task on screen — the page had already applied it
+ * locally — until the next snapshot arrived without it and it vanished. No
+ * message, no code, nothing to report. A tool that cannot say why it failed is
+ * worse than one that fails loudly, and it makes the failure undiagnosable from
+ * the outside.
+ */
+const DB_ERROR_COPY = {
+  invalid_argument: "That change was rejected as malformed and wasn't saved.",
+  resource_exhausted: "Too many changes at once — wait a moment and try again.",
+  quota_exceeded: "This queue has hit its storage limit. Delete some finished tasks.",
+  unavailable: "Storage is temporarily unreachable. Your change wasn't saved.",
+  revoked: "This page lost access to its storage. Reload to sign in again.",
+  not_granted: "This page isn't allowed to save data here.",
+  capability_disabled: "Saving isn't available in this view.",
+  capability_removed: "Saving isn't available in this view.",
+  transform_error: "That change couldn't be prepared and wasn't saved."
+};
+
+function dbErrorCopy(code) {
+  if (code && Object.prototype.hasOwnProperty.call(DB_ERROR_COPY, code)) {
+    return DB_ERROR_COPY[code];
+  }
+  return "That change couldn't be saved.";
+}
+
+/**
+ * One line describing what failed to save, for the status line.
+ *
+ * Names the count rather than every id: the user needs to know their change did
+ * not stick and roughly why, not a list of document paths.
+ */
+function describeWriteFailures(failures) {
+  if (!failures || !failures.length) return "";
+  const codes = Array.from(new Set(failures.map((f) => f.code).filter(Boolean)));
+  const copy = codes.length === 1 ? dbErrorCopy(codes[0]) : "Some changes couldn't be saved.";
+  const n = failures.length;
+  return `${copy} (${n} change${n === 1 ? "" : "s"} lost — reload to see what was stored.)`;
+}
+
 // ────────────────────────────────────────────────────────────────────
 // src/core/rollover.js
 // ────────────────────────────────────────────────────────────────────
@@ -2077,26 +2124,46 @@ function zoneChoices(current) {
   // rollover and undo alike. One code path that writes means one place where
   // ordering and failure handling have to be right.
   function execute(ops){
-    if (!ops || !ops.length) return Promise.resolve();
+    if (!ops || !ops.length) return Promise.resolve({ failed: [] });
+    var failed = [];
+
+    // A failed write is recorded, never swallowed. The batch still drains —
+    // one rejected document should not abandon the other nine — but the caller
+    // is told, because the page has already applied every op locally and the
+    // next snapshot will silently undo whichever ones did not land.
+    function attempt(op, promise){
+      return promise.catch(function(err){
+        failed.push({
+          kind: op.kind,
+          id: op.id || "profile/main",
+          code: (err && err.code) || "unavailable",
+          message: (err && err.message) || ""
+        });
+      });
+    }
+
     var jobs = ops.map(function(op){
       return function(){
         localApply(op);
         if (!db) return Promise.resolve();
-        if (op.kind === "create") return db.doc("tasks/" + op.id).set(toDocument(op.task)).catch(noop);
-        if (op.kind === "patch")  return db.doc("tasks/" + op.id).update(op.fields).catch(noop);
-        if (op.kind === "delete") return db.doc("tasks/" + op.id).delete().catch(noop);
+        if (op.kind === "create") return attempt(op, db.doc("tasks/" + op.id).set(toDocument(op.task)));
+        if (op.kind === "patch")  return attempt(op, db.doc("tasks/" + op.id).update(op.fields));
+        if (op.kind === "delete") return attempt(op, db.doc("tasks/" + op.id).delete());
         if (op.kind === "profile") {
-          return db.doc("profile/main").set({
+          return attempt(op, db.doc("profile/main").set({
             goals: op.profile.goals,
             habits: op.profile.habits,
             timeZone: SETTINGS.timeZone,
             rollover: SETTINGS.rollover
-          }).catch(noop);
+          }));
         }
         return Promise.resolve();
       };
     });
-    return runSeq(jobs).then(function(){ render(); });
+    return runSeq(jobs).then(function(){
+      render();
+      return { failed: failed };
+    });
   }
 
   function noop(){}
@@ -2107,7 +2174,13 @@ function zoneChoices(current) {
     lines.forEach(function(text){ LOG.push({ ts: stamp, text: text }); });
     if (LOG.length > 100) LOG = LOG.slice(-100);
     if (!db) return Promise.resolve();
-    return db.doc("meta/log").set({ entries: LOG }).catch(noop);
+    // The log is secondary: a failure here costs the next prompt some history
+    // but loses no user data, so it does not interrupt with a message.
+    return db.doc("meta/log").set({ entries: LOG }).catch(function(err){
+      if (typeof console !== "undefined" && console.warn) {
+        console.warn("order-of-play: log write failed", (err && err.code) || err);
+      }
+    });
   }
 
   function saveSettings(){
@@ -2122,9 +2195,22 @@ function zoneChoices(current) {
 
   /** Record the pre-change state, then apply. This is what makes undo possible. */
   function commit(label, ops, logLines){
-    if (!ops || !ops.length) return Promise.resolve();
+    if (!ops || !ops.length) return Promise.resolve({ failed: [] });
     HISTORY.record(currentState(), label);
-    return execute(ops).then(function(){ return appendLog(logLines); }).then(render);
+    var outcome = { failed: [] };
+    return execute(ops)
+      .then(function(res){
+        outcome = res || { failed: [] };
+        return appendLog(logLines);
+      })
+      .then(function(){
+        render();
+        if (outcome.failed.length) {
+          say(describeWriteFailures(outcome.failed), "err",
+              outcome.failed[0].code + (outcome.failed.length > 1 ? " +" + (outcome.failed.length - 1) : ""));
+        }
+        return outcome;
+      });
   }
 
   /* ------------------------------------------------------------- rollover */
@@ -2736,7 +2822,11 @@ function zoneChoices(current) {
         else if (!isExample) { TASKS = []; }
         render();
         considerRollover();
-      }, noop);
+      }, function(err){
+        // Terminal: this listener is dead and the board will stop updating.
+        say("Lost the live connection to your queue. Reload to reconnect.", "err",
+            (err && err.code) || "unavailable");
+      });
 
       db.doc("profile/main").onSnapshot(function(snap){
         var data = snap.exists ? (snap.data() || {}) : {};

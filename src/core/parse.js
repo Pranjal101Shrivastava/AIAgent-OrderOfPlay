@@ -104,3 +104,50 @@ export function errorCopy(code) {
   if (code && Object.prototype.hasOwnProperty.call(ERROR_COPY, code)) return ERROR_COPY[code];
   return "Something went wrong reaching Claude. Try again.";
 }
+
+/**
+ * Storage error codes, mapped to copy.
+ *
+ * These arrive from the document store rather than the sampling capability, but
+ * the rule is the same one: branch on a stable code, never on message text, and
+ * give an unknown code generic copy rather than leaking an internal string.
+ *
+ * This exists because the first version swallowed every storage failure. A
+ * write that failed left the task on screen — the page had already applied it
+ * locally — until the next snapshot arrived without it and it vanished. No
+ * message, no code, nothing to report. A tool that cannot say why it failed is
+ * worse than one that fails loudly, and it makes the failure undiagnosable from
+ * the outside.
+ */
+export const DB_ERROR_COPY = {
+  invalid_argument: "That change was rejected as malformed and wasn't saved.",
+  resource_exhausted: "Too many changes at once — wait a moment and try again.",
+  quota_exceeded: "This queue has hit its storage limit. Delete some finished tasks.",
+  unavailable: "Storage is temporarily unreachable. Your change wasn't saved.",
+  revoked: "This page lost access to its storage. Reload to sign in again.",
+  not_granted: "This page isn't allowed to save data here.",
+  capability_disabled: "Saving isn't available in this view.",
+  capability_removed: "Saving isn't available in this view.",
+  transform_error: "That change couldn't be prepared and wasn't saved."
+};
+
+export function dbErrorCopy(code) {
+  if (code && Object.prototype.hasOwnProperty.call(DB_ERROR_COPY, code)) {
+    return DB_ERROR_COPY[code];
+  }
+  return "That change couldn't be saved.";
+}
+
+/**
+ * One line describing what failed to save, for the status line.
+ *
+ * Names the count rather than every id: the user needs to know their change did
+ * not stick and roughly why, not a list of document paths.
+ */
+export function describeWriteFailures(failures) {
+  if (!failures || !failures.length) return "";
+  const codes = Array.from(new Set(failures.map((f) => f.code).filter(Boolean)));
+  const copy = codes.length === 1 ? dbErrorCopy(codes[0]) : "Some changes couldn't be saved.";
+  const n = failures.length;
+  return `${copy} (${n} change${n === 1 ? "" : "s"} lost — reload to see what was stored.)`;
+}

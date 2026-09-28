@@ -1,7 +1,16 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { ERROR_COPY, REPLY_FALLBACK, errorCopy, parseLoose, readAgentReply } from "../src/core/parse.js";
+import {
+  DB_ERROR_COPY,
+  ERROR_COPY,
+  REPLY_FALLBACK,
+  dbErrorCopy,
+  describeWriteFailures,
+  errorCopy,
+  parseLoose,
+  readAgentReply
+} from "../src/core/parse.js";
 
 test("parseLoose reads plain JSON", () => {
   assert.deepEqual(parseLoose('{"reply":"ok","actions":[]}'), { reply: "ok", actions: [] });
@@ -96,4 +105,54 @@ test("errorCopy branches on codes, never on message text", () => {
 test("errorCopy does not leak inherited properties", () => {
   assert.match(errorCopy("toString"), /Something went wrong/);
   assert.match(errorCopy("__proto__"), /Something went wrong/);
+});
+
+// --- storage failures ------------------------------------------------------
+
+test("dbErrorCopy names each storage failure the store can raise", () => {
+  assert.equal(dbErrorCopy("quota_exceeded"), DB_ERROR_COPY.quota_exceeded);
+  assert.match(dbErrorCopy("invalid_argument"), /malformed/);
+  assert.match(dbErrorCopy("revoked"), /Reload/);
+  assert.match(dbErrorCopy("unavailable"), /wasn't saved/);
+});
+
+test("dbErrorCopy does not leak inherited properties", () => {
+  assert.match(dbErrorCopy("toString"), /couldn't be saved/);
+  assert.match(dbErrorCopy("__proto__"), /couldn't be saved/);
+  assert.match(dbErrorCopy("some_future_code"), /couldn't be saved/);
+  assert.match(dbErrorCopy(undefined), /couldn't be saved/);
+});
+
+test("describeWriteFailures is silent when nothing failed", () => {
+  assert.equal(describeWriteFailures([]), "");
+  assert.equal(describeWriteFailures(null), "");
+  assert.equal(describeWriteFailures(undefined), "");
+});
+
+test("describeWriteFailures reports the count and the reason", () => {
+  const one = describeWriteFailures([{ kind: "create", id: "a", code: "quota_exceeded" }]);
+  assert.match(one, /storage limit/);
+  assert.match(one, /1 change lost/);
+
+  const many = describeWriteFailures([
+    { kind: "create", id: "a", code: "unavailable" },
+    { kind: "patch", id: "b", code: "unavailable" }
+  ]);
+  assert.match(many, /2 changes lost/);
+  assert.match(many, /temporarily unreachable/, "one shared code names that code");
+});
+
+test("describeWriteFailures generalises when codes differ", () => {
+  const mixed = describeWriteFailures([
+    { kind: "create", id: "a", code: "quota_exceeded" },
+    { kind: "patch", id: "b", code: "invalid_argument" }
+  ]);
+  assert.match(mixed, /Some changes couldn't be saved/);
+  assert.match(mixed, /2 changes lost/);
+});
+
+test("describeWriteFailures survives a failure with no code", () => {
+  const out = describeWriteFailures([{ kind: "create", id: "a" }]);
+  assert.match(out, /couldn't be saved/);
+  assert.match(out, /1 change lost/);
 });
