@@ -1112,6 +1112,17 @@
         el.applied.textContent = "";
         if (code === "cancelled") { say("Stopped."); return; }
         say(errorCopy(code), "err", code);
+
+        // Put the message back. The composer is cleared optimistically when the
+        // send starts, which is right when it succeeds and cruel when it does
+        // not: a failure the user is told to retry should not also cost them
+        // what they typed. Only restore into an empty box, so a message typed
+        // while waiting is never overwritten.
+        if (!el.msg.value) {
+          el.msg.value = text;
+          el.msg.style.height = "auto";
+          el.msg.style.height = Math.min(el.msg.scrollHeight, 132) + "px";
+        }
       })
       .then(function(){
         busy = false;
