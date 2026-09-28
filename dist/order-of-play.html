@@ -72,6 +72,11 @@
   button.tool:hover:not(:disabled){background:var(--surface-2); color:var(--ink)}
   button.tool:disabled{opacity:.38; cursor:default}
   button.tool.on{background:var(--accent-soft); color:var(--accent); border-color:transparent}
+  button.tool.add{
+    background:var(--accent-soft); color:var(--accent);
+    border-color:color-mix(in srgb,var(--accent) 30%,transparent); font-weight:500;
+  }
+  button.tool.add:hover:not(:disabled){background:color-mix(in srgb,var(--accent) 18%,transparent)}
 
   .banner{
     margin-top:16px; padding:10px 13px; border-radius:8px;
@@ -292,6 +297,7 @@
     <h1>Order of Play</h1>
     <p class="standfirst">Your day as an <em>ordered queue</em>, never a timetable. Days are fixed. Hours are yours.</p>
     <div class="tools">
+      <button class="tool add" id="addtask" type="button">+ Task</button>
       <button class="tool" id="undo" type="button" disabled>Undo</button>
       <button class="tool" id="redo" type="button" disabled>Redo</button>
       <span class="spacer"></span>
@@ -2076,6 +2082,7 @@ function zoneChoices(current) {
     goals:   document.getElementById("goals"),
     habits:  document.getElementById("habits"),
     applied: document.getElementById("applied"),
+    addTask: document.getElementById("addtask"),
     undo:    document.getElementById("undo"),
     redo:    document.getElementById("redo"),
     exportB: document.getElementById("export"),
@@ -2456,6 +2463,44 @@ function zoneChoices(current) {
     }
     commit("edit", [{ kind:"patch", id:task.id, fields: plan.fields }], lines);
   }
+
+  /**
+   * Create a task by hand.
+   *
+   * Until this existed, the only way to add anything was to ask the agent —
+   * which meant a sampling outage did not degrade the tool, it disabled it.
+   * A queue you cannot add to is not a queue. The same reasoning already
+   * justified the manual reorder and edit controls; adding was the obvious
+   * gap and the most damaging one.
+   *
+   * The task is created empty and opened straight into the inline editor, so
+   * the flow is one click and then typing, not a separate form.
+   */
+  function addTaskByHand(){
+    if (isExample) { TASKS = []; isExample = false; }
+    var task = normalizeTask({
+      id: MAKE_ID(),
+      title: "New task",
+      day: TODAY,
+      shape: "admin",
+      size: "M",
+      order: nextOrder(TASKS, TODAY),
+      status: "open",
+      pushes: 0,
+      createdAt: new Date().toISOString()
+    }, { today: TODAY });
+
+    commit("add", [{ kind: "create", id: task.id, task: task }], ['added "' + task.title + '"'])
+      .then(function(){
+        editingId = task.id;
+        render();
+        var field = document.getElementById("e-title");
+        if (field) field.select();
+        say("Added a task. Give it a name.", "live");
+      });
+  }
+
+  el.addTask.addEventListener("click", addTaskByHand);
 
   el.board.addEventListener("click", function(event){
     var button = event.target.closest("button[data-act], #rollall");
