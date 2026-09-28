@@ -301,6 +301,7 @@
       <button class="tool" id="undo" type="button" disabled>Undo</button>
       <button class="tool" id="redo" type="button" disabled>Redo</button>
       <span class="spacer"></span>
+      <button class="tool" id="ping" type="button" title="Check whether Claude is reachable">Test</button>
       <button class="tool" id="export" type="button">Export</button>
       <button class="tool" id="import" type="button">Import</button>
       <input type="file" id="file" accept="application/json,.json" class="sr">
@@ -2083,6 +2084,7 @@ function zoneChoices(current) {
     habits:  document.getElementById("habits"),
     applied: document.getElementById("applied"),
     addTask: document.getElementById("addtask"),
+    ping:    document.getElementById("ping"),
     undo:    document.getElementById("undo"),
     redo:    document.getElementById("redo"),
     exportB: document.getElementById("export"),
@@ -2830,6 +2832,41 @@ function zoneChoices(current) {
         ctl = null;
       });
   }
+
+  /**
+   * Is Claude reachable at all?
+   *
+   * The smallest possible call: three words, the fastest tier, no cache, none
+   * of this page's state. When a real send fails there is no way to tell from
+   * inside the app whether the fault is the request, the queue, or the service
+   * — and that ambiguity cost days. This answers it in one click, and reports
+   * the raw code and the elapsed time rather than interpreting them.
+   */
+  function ping(){
+    if (!ask) {
+      say("Claude isn't reachable from this page at all.", "err", "sample capability is null");
+      return;
+    }
+    el.ping.disabled = true;
+    say("Testing the connection\u2026");
+    var started = Date.now();
+
+    ask("Reply with exactly: ok", { cache: false, modelTier: "quick" })
+      .then(function(res){
+        var text = String((res && res.text) || "").trim().slice(0, 40);
+        say("Claude is reachable \u2014 the problem is not the connection.", "live",
+            (Date.now() - started) + "ms \u00b7 tier " + ((res && res.modelTierApplied) || "?") +
+            " \u00b7 replied " + JSON.stringify(text));
+      })
+      .catch(function(err){
+        var code = (err && err.code) || "upstream_error";
+        say("Even a three-word request failed, so this is the service and not your queue.", "err",
+            code + " \u00b7 after " + (Date.now() - started) + "ms");
+      })
+      .then(function(){ el.ping.disabled = false; });
+  }
+
+  el.ping.addEventListener("click", ping);
 
   el.send.addEventListener("click", send);
   el.stop.addEventListener("click", function(){ if (ctl) ctl.abort(); });
