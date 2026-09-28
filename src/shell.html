@@ -530,12 +530,66 @@
       };
     });
     return runSeq(jobs).then(function(){
+      if (failed.length) {
+        // Do not leave optimistic changes on screen that the store refused.
+        return resync().then(function(){ return { failed: failed }; });
+      }
       render();
       return { failed: failed };
     });
   }
 
   function noop(){}
+
+  /**
+   * Re-read the store and adopt it as the truth.
+   *
+   * Every op is applied in memory before it is written, so the interface stays
+   * responsive. When a write then fails, that optimism has already put a change
+   * on screen that the store never accepted — and no snapshot will correct it,
+   * because from the store's point of view nothing happened.
+   *
+   * So a failed batch ends by asking the store what it actually holds. Local
+   * state is discarded rather than reconciled: the store is authoritative, and
+   * guessing which half of a partly-applied batch survived is exactly the kind
+   * of reasoning that produces a wrong queue.
+   */
+  function resync(){
+    if (!db) return Promise.resolve();
+    // Wrapped because a ref builder throws synchronously on a bad path, and a
+    // throw here would break the chain that reports the failure — losing the
+    // error message that is the whole point of getting this far.
+    try {
+      return resyncInner();
+    } catch (err) {
+      render();
+      return Promise.resolve();
+    }
+  }
+
+  function resyncInner(){
+    return db.collection("tasks").get()
+      .then(function(snap){
+        TASKS = snap.docs.map(function(doc){
+          return normalizeTask(Object.assign({ id: doc.id }, doc.data() || {}), { today: TODAY });
+        });
+        isExample = false;
+        return db.doc("profile/main").get();
+      })
+      .then(function(snap){
+        var data = snap && snap.exists ? (snap.data() || {}) : {};
+        PROFILE = {
+          goals: Array.isArray(data.goals) ? data.goals : [],
+          habits: Array.isArray(data.habits) ? data.habits : []
+        };
+        render();
+      })
+      .catch(function(){
+        // The store is unreachable for reads too. Nothing better is available
+        // than what is already on screen; the failure has been reported.
+        render();
+      });
+  }
 
   function appendLog(lines){
     if (!lines || !lines.length) return Promise.resolve();
@@ -560,6 +614,20 @@
       timeZone: SETTINGS.timeZone,
       rollover: SETTINGS.rollover
     }).catch(noop);
+  }
+
+  /**
+   * Announce success only if the writes actually landed.
+   *
+   * commit() reports failures itself. Four callers then said "Added a task" or
+   * "Moved 3 overdue tasks" in a .then() afterwards, overwriting that message
+   * with a claim of success — so a failed write looked, briefly and then
+   * permanently, like a successful one. Routing every success line through
+   * here makes that mistake impossible to repeat.
+   */
+  function announce(outcome, text, kind, aside){
+    if (outcome && outcome.failed && outcome.failed.length) return;
+    say(text, kind, aside);
   }
 
   /** Record the pre-change state, then apply. This is what makes undo possible. */
@@ -592,14 +660,15 @@
     var plan = planRollover(TASKS, { today: TODAY, now: new Date().toISOString() });
     if (!plan.ops.length) return Promise.resolve();
     showNotice("");
-    return commit("rollover", plan.ops, plan.log).then(function(){
+    return commit("rollover", plan.ops, plan.log).then(function(outcome){
       var n = plan.moved.length;
       var charged = plan.moved.filter(function(m){ return m.charged; }).length;
-      say(
+      announce(outcome,
         "Moved " + n + " overdue task" + (n === 1 ? "" : "s") + " to today.",
         "live",
         charged ? charged + " push" + (charged === 1 ? "" : "es") + " recorded" : "no pushes recorded"
       );
+      if (outcome && outcome.failed && outcome.failed.length) return;
       if (plan.alarms.length) {
         showNotice(
           plan.alarms.map(function(a){
@@ -839,7 +908,8 @@
     }, { today: TODAY });
 
     commit("add", [{ kind: "create", id: task.id, task: task }], ['added "' + task.title + '"'])
-      .then(function(){
+      .then(function(outcome){
+        if (outcome && outcome.failed && outcome.failed.length) return;
         editingId = task.id;
         render();
         var field = document.getElementById("e-title");
@@ -894,28 +964,38 @@
 
   /* ------------------------------------------------------------ undo/redo */
 
-  function applyHistory(step){
+  function applyHistory(step, label){
     if (!step) return;
     var target = step.state;
-    execute(step.ops).then(function(){
+    execute(step.ops).then(function(res){
+      // Only adopt the restored state if it was actually written. Overwriting
+      // TASKS regardless meant a failed undo repainted the board into a state
+      // the store had never accepted, and said nothing.
+      if (res && res.failed && res.failed.length) {
+        // This path calls execute() directly rather than commit(), so it owns
+        // the reporting. execute() has already re-read the store, so the board
+        // is correct; what is missing is telling the user why the undo did not
+        // take. Do not adopt the state that was never written.
+        say(describeWriteFailures(res.failed), "err", res.failed[0].code);
+        return;
+      }
       TASKS = target.tasks.map(function(t){ return normalizeTask(t, { today: TODAY }); });
       PROFILE = { goals: target.profile.goals.slice(), habits: target.profile.habits.slice() };
       render();
+      if (label) say(label, "live");
     });
   }
 
   el.undo.addEventListener("click", function(){
     var step = HISTORY.undo(currentState());
     if (!step) return;
-    applyHistory(step);
-    say("Undid the " + step.label + ".", "live");
+    applyHistory(step, "Undid the " + step.label + ".");
   });
 
   el.redo.addEventListener("click", function(){
     var step = HISTORY.redo(currentState());
     if (!step) return;
-    applyHistory(step);
-    say("Redid the " + step.label + ".", "live");
+    applyHistory(step, "Redid the " + step.label + ".");
   });
 
   document.addEventListener("keydown", function(event){
@@ -1026,14 +1106,15 @@
       if (plan.error) { say(plan.error, "err"); return; }
 
       if (isExample) { TASKS = []; isExample = false; }
-      commit("import", plan.ops, ["imported " + plan.added + " tasks (" + mode + ")"]).then(function(){
-        say(
+      commit("import", plan.ops, ["imported " + plan.added + " tasks (" + mode + ")"]).then(function(outcome){
+        announce(outcome,
           mode === IMPORT_REPLACE
             ? "Replaced the queue with " + plan.added + " imported tasks."
             : "Merged in " + plan.added + " tasks.",
           "live",
           read.notes.length ? read.notes.length + " row(s) needed repair" : ""
         );
+        if (outcome && outcome.failed && outcome.failed.length) return;
         if (read.notes.length) showNotice(read.notes.join(" "));
         considerRollover();
       });
@@ -1192,9 +1273,15 @@
    * seconds of the viewer's usage in exchange for an answer that guessing has
    * not produced.
    */
-  function probe(prompt, tier){
+  function probe(prompt, tier, withSignal){
     var started = Date.now();
-    return ask(prompt, { cache: false, modelTier: tier })
+    var opts = { cache: false, modelTier: tier };
+    // send() passes an AbortSignal and the earlier test did not. That made the
+    // test's success and the send's failure incomparable, which is exactly the
+    // mistake a diagnostic must not make: it has to vary one thing at a time
+    // and it has to cover the real call.
+    if (withSignal) opts.signal = new AbortController().signal;
+    return ask(prompt, opts)
       .then(function(res){
         return { ok: true, ms: Date.now() - started, tier: (res && res.modelTierApplied) || tier };
       })
@@ -1217,18 +1304,19 @@
     });
     var fullBytes = promptFits(full).bytes;
 
+    // Ordered so each row changes exactly one thing from the row above.
     var cases = [
-      { label: "tiny/quick", prompt: TINY, tier: "quick" },
-      { label: "tiny/standard", prompt: TINY, tier: "default" },
-      { label: "full/quick", prompt: full, tier: "quick" },
-      { label: "full/standard", prompt: full, tier: "default" }
+      { label: "tiny", prompt: TINY, tier: "quick", signal: false },
+      { label: "full", prompt: full, tier: "quick", signal: false },
+      { label: "full+signal", prompt: full, tier: "quick", signal: true },
+      { label: "full+signal/std", prompt: full, tier: "default", signal: true }
     ];
     var done = [];
 
     function step(i){
       if (i >= cases.length) return Promise.resolve();
       say("Testing " + cases[i].label + "\u2026", "", done.map(fmt).join(" \u00b7 "));
-      return probe(cases[i].prompt, cases[i].tier).then(function(res){
+      return probe(cases[i].prompt, cases[i].tier, cases[i].signal).then(function(res){
         done.push({ label: cases[i].label, res: res });
         return step(i + 1);
       });
@@ -1241,28 +1329,26 @@
     step(0).then(function(){
       var by = {};
       done.forEach(function(d){ by[d.label] = d.res.ok; });
-      var fq = by["full/quick"], fs = by["full/standard"];
-      var tq = by["tiny/quick"], ts = by["tiny/standard"];
+      var tiny = by["tiny"], full_ = by["full"], sig = by["full+signal"], std = by["full+signal/std"];
 
-      // Ordered from most specific to least. The real prompt is what matters,
-      // so it is asked about first; the short prompt only explains WHY the
-      // real one failed.
+      // Most specific first. The last row is the call send() actually makes, so
+      // it decides; the rows above it only explain why it failed.
       var verdict;
-      if (fq && fs) {
-        verdict = "Your real queue works on both tiers. The earlier failures were intermittent.";
-      } else if (fq || fs) {
-        verdict = "Your queue works on " + (fq ? "Quick" : "Standard") + " but not " +
-                  (fq ? "Standard" : "Quick") + ". Use " + (fq ? "Quick" : "Standard") + " for now.";
-      } else if (tq && ts) {
-        verdict = "Both tiers answer a short prompt and both fail on yours \u2014 so it is the prompt, at " +
+      if (sig || std) {
+        verdict = "The real call works now" + (sig && std ? " on both tiers" : sig ? " on Quick" : " on Standard") +
+                  ". Send should work \u2014 the earlier failures were intermittent.";
+      } else if (full_ && !sig) {
+        verdict = "Your queue works until a Stop signal is attached, and fails with it. " +
+                  "That is the bug, it is mine, and I can remove it.";
+      } else if (tiny && !full_) {
+        verdict = "A short prompt works and your queue does not \u2014 so it is the prompt, at " +
                   fullBytes + " bytes. That one is mine to fix.";
-      } else if (tq || ts) {
-        verdict = "Only a short prompt on " + (tq ? "Quick" : "Standard") +
-                  " succeeds. Size and tier are both involved.";
-      } else {
+      } else if (!tiny) {
         verdict = "Even a three-word request fails. Sampling is unavailable right now, and none of this is your queue.";
+      } else {
+        verdict = "Inconclusive \u2014 send me the row above.";
       }
-      say(verdict, (fq || fs) ? "live" : "err", done.map(fmt).join(" \u00b7 "));
+      say(verdict, (by["full+signal"] || by["full+signal/std"]) ? "live" : "err", done.map(fmt).join(" \u00b7 "));
       el.ping.disabled = false;
     });
   }
