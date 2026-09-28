@@ -2834,36 +2834,91 @@ function zoneChoices(current) {
   }
 
   /**
-   * Is Claude reachable at all?
+   * Which variable is breaking the call?
    *
-   * The smallest possible call: three words, the fastest tier, no cache, none
-   * of this page's state. When a real send fails there is no way to tell from
-   * inside the app whether the fault is the request, the queue, or the service
-   * — and that ambiguity cost days. This answers it in one click, and reports
-   * the raw code and the elapsed time rather than interpreting them.
+   * A single test answers "is the service up", which is worth knowing and is
+   * not the whole question. When a three-word request succeeds and a real one
+   * fails, exactly two things differ: the model tier, and the prompt. So this
+   * runs the two-by-two and reports which cells pass.
+   *
+   * The calls are sequential, never concurrent — the capability serves a couple
+   * at once and rejects a flood — and there are four of them, which is a few
+   * seconds of the viewer's usage in exchange for an answer that guessing has
+   * not produced.
    */
+  function probe(prompt, tier){
+    var started = Date.now();
+    return ask(prompt, { cache: false, modelTier: tier })
+      .then(function(res){
+        return { ok: true, ms: Date.now() - started, tier: (res && res.modelTierApplied) || tier };
+      })
+      .catch(function(err){
+        return { ok: false, ms: Date.now() - started, code: (err && err.code) || "upstream_error" };
+      });
+  }
+
   function ping(){
     if (!ask) {
       say("Claude isn't reachable from this page at all.", "err", "sample capability is null");
       return;
     }
     el.ping.disabled = true;
-    say("Testing the connection\u2026");
-    var started = Date.now();
 
-    ask("Reply with exactly: ok", { cache: false, modelTier: "quick" })
-      .then(function(res){
-        var text = String((res && res.text) || "").trim().slice(0, 40);
-        say("Claude is reachable \u2014 the problem is not the connection.", "live",
-            (Date.now() - started) + "ms \u00b7 tier " + ((res && res.modelTierApplied) || "?") +
-            " \u00b7 replied " + JSON.stringify(text));
-      })
-      .catch(function(err){
-        var code = (err && err.code) || "upstream_error";
-        say("Even a three-word request failed, so this is the service and not your queue.", "err",
-            code + " \u00b7 after " + (Date.now() - started) + "ms");
-      })
-      .then(function(){ el.ping.disabled = false; });
+    var TINY = "Reply with exactly: ok";
+    var full = buildPrompt({
+      message: "what should I do next?",
+      tasks: TASKS, profile: PROFILE, log: LOG, today: TODAY, name: "Pranjal"
+    });
+    var fullBytes = promptFits(full).bytes;
+
+    var cases = [
+      { label: "tiny/quick", prompt: TINY, tier: "quick" },
+      { label: "tiny/standard", prompt: TINY, tier: "default" },
+      { label: "full/quick", prompt: full, tier: "quick" },
+      { label: "full/standard", prompt: full, tier: "default" }
+    ];
+    var done = [];
+
+    function step(i){
+      if (i >= cases.length) return Promise.resolve();
+      say("Testing " + cases[i].label + "\u2026", "", done.map(fmt).join(" \u00b7 "));
+      return probe(cases[i].prompt, cases[i].tier).then(function(res){
+        done.push({ label: cases[i].label, res: res });
+        return step(i + 1);
+      });
+    }
+
+    function fmt(d){
+      return d.label + " " + (d.res.ok ? "\u2713 " + d.res.ms + "ms" : "\u2717 " + d.res.code);
+    }
+
+    step(0).then(function(){
+      var by = {};
+      done.forEach(function(d){ by[d.label] = d.res.ok; });
+      var fq = by["full/quick"], fs = by["full/standard"];
+      var tq = by["tiny/quick"], ts = by["tiny/standard"];
+
+      // Ordered from most specific to least. The real prompt is what matters,
+      // so it is asked about first; the short prompt only explains WHY the
+      // real one failed.
+      var verdict;
+      if (fq && fs) {
+        verdict = "Your real queue works on both tiers. The earlier failures were intermittent.";
+      } else if (fq || fs) {
+        verdict = "Your queue works on " + (fq ? "Quick" : "Standard") + " but not " +
+                  (fq ? "Standard" : "Quick") + ". Use " + (fq ? "Quick" : "Standard") + " for now.";
+      } else if (tq && ts) {
+        verdict = "Both tiers answer a short prompt and both fail on yours \u2014 so it is the prompt, at " +
+                  fullBytes + " bytes. That one is mine to fix.";
+      } else if (tq || ts) {
+        verdict = "Only a short prompt on " + (tq ? "Quick" : "Standard") +
+                  " succeeds. Size and tier are both involved.";
+      } else {
+        verdict = "Even a three-word request fails. Sampling is unavailable right now, and none of this is your queue.";
+      }
+      say(verdict, (fq || fs) ? "live" : "err", done.map(fmt).join(" \u00b7 "));
+      el.ping.disabled = false;
+    });
   }
 
   el.ping.addEventListener("click", ping);
