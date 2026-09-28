@@ -156,3 +156,28 @@ test("describeWriteFailures survives a failure with no code", () => {
   assert.match(out, /couldn't be saved/);
   assert.match(out, /1 change lost/);
 });
+
+test("every documented sampling error code has its own copy", () => {
+  // The generic fallback exists for codes that do not exist yet, not for ones
+  // the platform already documents. An unmapped documented code is the bug
+  // that made a week-long failure unreadable.
+  const documented = [
+    "invalid_request", "prompt_too_large", "images_unavailable", "tools_unavailable",
+    "image_rejected", "cancelled", "not_granted", "session_expired", "sampling_disabled",
+    "not_declared", "rate_limited", "refused", "empty_completion", "invalid_json",
+    "upstream_error", "capability_disabled", "capability_removed", "transform_error",
+    "queue_overflow"
+  ];
+  const unmapped = documented.filter(
+    (code) => !Object.prototype.hasOwnProperty.call(ERROR_COPY, code),
+  );
+  assert.deepEqual(unmapped, [], "these codes would show the generic message");
+});
+
+test("upstream_error reads as transient, not as a dead end", () => {
+  assert.match(errorCopy("upstream_error"), /try again/i);
+});
+
+test("not_declared points at the actual fix", () => {
+  assert.match(errorCopy("not_declared"), /republish/i);
+});

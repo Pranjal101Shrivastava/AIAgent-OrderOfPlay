@@ -97,7 +97,21 @@ export const ERROR_COPY = {
   refused: "I can't act on that one.",
   empty_completion: "I came back blank. Try saying it a different way.",
   prompt_too_large: "Too much at once — clear some finished tasks first.",
-  cancelled: ""
+  cancelled: "",
+
+  // The codes the first version left unmapped. Every one of them fell through
+  // to the generic line, which is how a persistent failure stayed
+  // indistinguishable from a passing blip for a week.
+  upstream_error: "Claude didn't answer that time. It's usually temporary — try again.",
+  not_declared: "This page isn't set up to use Claude. It needs republishing with the sample capability.",
+  capability_disabled: "Claude isn't usable in this view. Try opening the page directly.",
+  capability_removed: "This page needs republishing to work with the current viewer.",
+  invalid_request: "I built that request wrongly — this is a bug in the page, not something you did.",
+  transform_error: "I built that request wrongly — this is a bug in the page, not something you did.",
+  queue_overflow: "Too many requests stacked up. Reload the page.",
+  images_unavailable: "This view can't send images.",
+  tools_unavailable: "This view can't run page tools.",
+  image_rejected: "That image couldn't be used."
 };
 
 export function errorCopy(code) {

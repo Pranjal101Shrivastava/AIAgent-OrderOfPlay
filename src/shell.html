@@ -1104,10 +1104,14 @@
         });
       })
       .catch(function(error){
+        // The raw code goes on screen beside the copy. Without it, an unmapped
+        // or newly-introduced code is indistinguishable from any other failure,
+        // and the user has nothing to report. Copy explains; the code
+        // identifies.
         var code = (error && error.code) || "upstream_error";
         el.applied.textContent = "";
         if (code === "cancelled") { say("Stopped."); return; }
-        say(errorCopy(code), "err");
+        say(errorCopy(code), "err", code);
       })
       .then(function(){
         busy = false;
